@@ -1,0 +1,203 @@
+---
+title: "Data Explorer"
+subtitle: Adopted from <https://testing-apps.shinyapps.io/flexdashboard-shiny-ggplot2-diamonds>
+output: 
+  flexdashboard::flex_dashboard:
+    vertical_layout:  fill # scroll # fill # scroll
+    orientation: rows
+    social: menu
+    source_code: embed
+runtime: shiny
+---
+
+```{r global, include=F}
+knitr::opts_chunk$set(echo = F, message=F, warning=F)
+getwd()
+
+source("lib_opendata.R",  echo=F)
+source("lib_unshiny.R")
+
+# dtDatasets <- data(package = .packages(all.available = TRUE) ) $ results %>% as.data.table
+dtDatasets <- data() $ results %>% as.data.table
+
+```
+
+# Title
+
+<!-- ## Inputs {.sidebar} -->
+## --- SIDEBAR ---- {.sidebar data-width="250"} 
+
+<font size=2>
+
+```{r}
+selectInput(
+  "dataset",  "Select dataset:",  width="100%",
+  # choices = c("DUMMY") # dts with Date, factors and metrics
+  choices = c("DUMMY", dtDatasets$Item)
+)
+
+observe({
+  req(input$dataset)
+  
+  # r$strDataset <- input$dataset
+  # r$cWin1$dt <- get(input$dataset) %>% setDT
+  
+  # self <- COpenData$new( myname = input$dataset )
+  
+  self <- COpenData$new( myname = "ocDummy" )
+  
+  if (input$dataset == "DUMMY")   {
+  self$dt <- dt.create.sample.dataset()
+  
+  self %>% od.setColumns(
+    date="date",
+    factors=c("state", "age","sex"),  
+    metrics = c( "births", "deaths" )
+  )
+  
+  
+  } else {
+    # input$dataset = "diamonds"
+    # data(get (input$dataset))
+    data(input$dataset)
+    self$dt <- get(input$dataset) %>% as.data.table
+    # self$dt[, Date:= rowid(get ( names(self$dt)[1] ) ) ]
+    # self$dt[, line:=rowid(get ( names(self$dt)[1] ) ) ]
+    # self %>% od.setColumns(
+    #   date="line",
+    #   factors= names(self$dt) [ which(sapply (self$dt,is.numeric)==F) ] ,  
+    #   metrics =  names(self$dt) [ which(sapply (self$dt,is.numeric)) %wo% (which (names(self$dt) == "line")) ]
+    # )  
+  }
+  
+  self %>% od.view()
+  r$cWin1 <- self$clone()
+  
+})
+
+renderPrint(r$cWin1$dt[c(1,.N)])
+
+renderUI({
+  r$cWin1$dt
+  shiny.set.input(  r$cWin1$dt )
+  
+})
+
+hr()
+
+renderUI({
+  self <- r$cWin1
+  dt <-  r$cWin1$dt
+
+  shiny.input.for.DtwithDate( dt, factors=self$col.factors, metrics=self$col.metrics)
+  
+})
+
+
+
+
+
+```
+
+---
+[Debug info](#debug)
+
+
+</font>
+
+## Outputs
+
+
+
+```{r r$cWin1$dt.input}
+
+observe({
+  
+  r$cWin1$input <- input
+  
+  
+  # nrows <-  r$cWin1$dt %>% nrow 
+  # r$cWin1$dt.input <- r$cWin1$dt [sample(nrows, input$sampleSize)] # Error in sample.int: invalid 'size' argument
+  
+  r$cWin1$dt.input <- r$cWin1$dt
+  # r$cWin1$dt.input <- r$cWin1$get.dt.subset()
+  
+  
+})
+
+```
+
+### Datasets
+
+```{r}
+renderDataTable({
+  dtDatasets [, c(1,3,4)] %>% datatable.title()
+})
+```
+
+
+### Table
+
+```{r}
+
+# r$cWin1 %>% od.grid
+
+renderDataTable({
+  req(r$cWin1$dt);
+  r$cWin1$dt %>% datatable.title()
+})
+
+```
+
+
+### Graph
+
+```{r}
+
+
+```
+
+
+
+
+<!-- # Debug {data-orientation=rows} -->
+
+# Debug {.hidden data-orientation=rows}
+
+## --- DEBUG  ---  {.tabset .tabset-fade} 
+
+### Debug: input
+
+```{r}
+renderPrint (reactiveValuesToList(input) )
+```
+
+### Debug: get.dt
+
+```{r}
+# renderPrint (reactiveValuesToList(r) )
+renderPrint (r$cWin1$dt )
+```
+
+
+### Debug: get.dt.subset
+
+
+```{r}
+# renderPrint ( r$cWin1 %>% od.view() )
+
+
+renderPrint ({
+  self <- r$cWin1
+  dt <- self$get.dt.subset()
+  dt
+})
+
+```
+
+
+```{r eval=T}
+knitr::knit_exit()
+```
+
+

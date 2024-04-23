@@ -1,0 +1,68 @@
+---
+title: "OpenCanada.info:"
+output: flexdashboard::flex_dashboard
+# runtime: shiny
+---
+
+```{r  include=FALSE}
+knitr::opts_chunk$set(echo = F, message=FALSE, warning=FALSE)
+source("opencanada-base.R")
+```
+
+```{r include=FALSE}
+
+# Figure 3
+cUK <- COpenData$new(
+  source = "UK",
+  page  = c("https://www.ons.gov.uk/peoplepopulationandcommunity/birthsdeathsandmarriages/deaths/bulletins/deathsinvolvingcovid19byvaccinationstatusengland/latest",
+            "https://www.ons.gov.uk/peoplepopulationandcommunity/birthsdeathsandmarriages/deaths/datasets/deathsbyvaccinationstatusengland"),
+  title = "Age-standardised mortality rates for deaths involving coronavirus (COVID-19), non-COVID-19 deaths and all deaths by vaccination status, broken down by age group.",
+  title.short = "Deaths, including with COVID-19, by vaccination status and age",
+
+  xls = "https://www.ons.gov.uk/file?uri=/peoplepopulationandcommunity/birthsdeathsandmarriages/deaths/datasets/deathsbyvaccinationstatusengland/deathsoccurringbetween1april2021and31december2022/referencetablefeb213.xlsx", 
+  gsheet = "https://docs.google.com/spreadsheets/d/1Cmmxk2dRR9-zD241B_wl7bv9CxmTm0crVLJyS8tUtaE/edit?usp=sharing",
+  comment = "Deaths occurring between 1 April 2021 and 31 December 2022 edition of this dataset. Data for 1 January 2021 available on the same site. Contact details for this dataset: 
+Charlotte Bermingham, Owen Gethings, Tom Stevens, Jasper Morgan, Megan Munro, Piotr Pawelek, Vahé Nafilyan
+health.data@ons.gov.uk
++44 1633 582486 ", 
+  dateLatestRelease = "21 February 2023",
+  frequency = "Monthly",
+  updated = "Monthly till June 2022. No releases after that untill February 2023"
+  
+)
+cUK
+self <- cUK
+
+library(httr)
+# GET(cUK$xls, write_disk(tf <- tempfile(fileext = ".xls")))
+GET(cUK$xls, write_disk(tf <- "uk-deaths-2021-04-01_2022-12-31.xls"))
+
+GET("https://www.ons.gov.uk/file?uri=/peoplepopulationandcommunity/birthsdeathsandmarriages/deaths/datasets/deathsbyvaccinationstatusengland/deathsoccurringbetween1january2021and31may2022/referencetable06072022accessible.xlsx", write_disk(tf <- "uk-deaths-2021-01-01_2022-05-31.xls"))
+
+dt <- read_excel(tf, 2L) %>% setDT
+
+cUK$fread.xls()
+
+library(openxlsx)
+
+df = openxlsx::read.xlsx(cUK$xls, 4) %>% setDT; df
+df
+
+library(rio)
+
+dt <- rio::import(file = url,which = 2)
+
+```
+
+
+# UK: All Deaths by vaccination status {data-orientation=columns, data-navmenu="World"}
+
+
+## Settings: {.sidebar}
+
+
+## 
+
+
+### 
+

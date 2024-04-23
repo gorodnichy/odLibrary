@@ -1,0 +1,40 @@
+
+# Data analyzed
+
+## 
+
+### Related to births and deaths
+
+URL: https://data.ontario.ca/en/dataset?q=births
+
+https://data.ontario.ca/en/dataset/birth-registrations-in-ontario-by-residence
+Last Validated Date	2021-06-04
+
+https://data.ontario.ca/en/dataset/live-births-by-age-of-parents
+Last Validated Date	2021-06-04
+
+
+https://data.ontario.ca/en/dataset/vital-events-data-by-month
+Last Validated Date	2022-12-21
+1994-01-01 - 2022-06-30
+https://data.ontario.ca/dataset/e100b1d5-b7fb-40fd-b7a0-50289d13c574/resource/97622ce6-c06a-4970-afe5-be540c748f24/download/vital_events_data_by_month_1994-2022_q2.csv
+
+https://data.ontario.ca/en/dataset/death-registrations-in-ontario-by-location
+Last Validated Date	2022-12-09
+1940-08-01 - 2022-06-30
+https://data.ontario.ca/dataset/f2d9985b-7195-4a12-8f6c-4efc9adca8d1/resource/2925c1ea-8313-4e9b-bdea-344e521d2298/download/death_registrations_in_ontario_by_location_1940-2022_q2.csv
+
+
+- https://data.ontario.ca/en/dataset?q=vital+statistics
+
+
+
+https://data.ontario.ca/en/dataset?q=covid
+
+https://data.ontario.ca/datastore/dump/e760480e-1f95-4634-a923-98161cfb02fa?bom=True
+COVID-19 cases in hospital and ICU, by Ontario Health (OH) region
+
+- https://data2.ontario.ca/en/dataset/deaths-by-cause-sex-and-age 
+Comments: We are reviewing the data in this record to determine if it can be made open. 
+https://data.ontario.ca/en/dataset/covid-19-vaccine-data-in-ontario
+

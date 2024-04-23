@@ -1,0 +1,103 @@
+
+# Data sources:
+
+
+##
+
+### Google search results for Vitals Statistics at Statistics Canada
+
+All of pages below are accessible using this path (replace 1310081001 with any other table number):
+
+https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1310081001   
+https://www150.statcan.gc.ca/n1/tbl/csv/13100810-eng.zip
+
+#### Vital Statistics - Death Database (Google: “deaths statistics canada”)
+
+##### Updated monthly (normally, second Thursday of the month). Frequency: Weekly
+
+Release date: 2023-07-13
+
+- X Provisional weekly death counts, by selected grouped causes of death
+Table: - 1310081001
+
+
+- X Provisional weekly death counts, by age group and sex
+Table: - 1310076801
+
+- Previous releases and revisions to provisional weekly death counts
+Table: - 13-10-0783-01
+https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=- 1310078301
+
+- Provisional weekly estimates of the number of deaths, expected number of deaths and excess mortality
+Table: - 13-10-0784-01
+1310078401
+
+##### Updated annually (Release date: 2021-09-28). Frequency: annual
+
+Frequency: Annual. 
+
+
+- Perinatal mortality (late fetal deaths and early neonatal deaths)
+Table: - 1310071401 
+Release date: 2022-01-24. 
+Last record: "2020-07-01"
+
+- Leading causes of death, infants
+Table: - 1310039501 
+the same as above (=)
+
+- Deaths and age-specific mortality rates, by selected grouped causes
+Table: - 1310039201
+=
+
+- Leading causes of death, total population, by age group
+Comments: till 2019 only
+Table: - 1310039401
+=
+
+- Infant deaths and mortality rates, by age group
+Table: 1310071201
+=
+
+
+
+### Vital Statistics - Birth Database
+
+
+
+- Fetal deaths (20 weeks or more of gestation) and late fetal deaths (28 weeks or more of gestation)
+Table: - 1310042701
+Release date: 2022-09-28  <--- 
+
+
+
+https://www150.statcan.gc.ca/n1/en/surveys/3231
+
+- Crude birth rate, age-specific fertility rates and total fertility rate (live births)
+Table: - 1310041801 
+Release date: 2021-09-29
+Release date: 2022-09-28  <--- 
+
+- Live births, by month
+Table: 1310041501 
+Release date: 2022-09-28  <--- 
+
+- X Live births and fetal deaths (stillbirths), by type of birth (single or multiple)
+1310042801
+Last record 2021-07-01
+
+
+## *** DATA VISUALIZED ***
+
+
+In this App included are the following: 
+
+- 1310076801, odStatcan.deaths.by.age
+- 1310081001, odStatcan.deaths.by.cause
+- 1310042801, odStatcan.births
+
+
+
+<!-- Live births, by age of mother -->
+<!-- Table: 13-10-0416-01 (formerly: CANSIM 102-4503) -->
+

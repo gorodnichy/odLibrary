@@ -1,0 +1,159 @@
+---
+title: "OpenCanada.info: PHAC"
+output: flexdashboard::flex_dashboard
+runtime: shiny
+---
+
+```{r  include=FALSE}
+knitr::opts_chunk$set(echo = F, message=FALSE, warning=FALSE)
+source("opencanada-base.R")
+```
+
+# COVID-19 Deaths -- by gender and province {data-orientation=columns, data-navmenu="PHAC"}
+
+<!-- ## Settings: {.sidebar} -->
+
+ "Rates of COVID-19 Cases and Deaths by Vaccination Status",
+https://covid.cdc.gov/covid-data-tracker/#rates-by-vaccine-status 
+
+leads to data:
+
+Data for CDC’s COVID Data Tracker site on Rates of COVID-19 Cases and Deaths by Updated (Bivalent) Booster Status:
+https://data.cdc.gov/Public-Health-Surveillance/Rates-of-COVID-19-Cases-or-Deaths-by-Age-Group-and/54ys-qyzm
+
+leads to API:
+
+Access this Dataset via SODA API
+
+The Socrata Open Data API (SODA) provides programmatic access to this dataset including the ability to filter, query, and aggregate data.
+
+https://data.cdc.gov/resource/54ys-qyzm.json
+
+
+Archive: 
+
+An archive of historic data, including April 3, 2021-September 24, 2022 and posted on October 21, 2022 is available on data.cdc.gov. 
+
+The analysis by vaccination status (unvaccinated and at least a primary series) for 31 jurisdictions is posted here: https://data.cdc.gov/Public-Health-Surveillance/Rates-of-COVID-19-Cases-or-Deaths-by-Age-Group-and/3rge-nu2a. 
+
+The analysis for one booster dose (unvaccinated, primary series only, and at least one booster dose) in 31 jurisdictions is posted here: https://data.cdc.gov/Public-Health-Surveillance/Rates-of-COVID-19-Cases-or-Deaths-by-Age-Group-and/d6p8-wqjm. 
+
+The analysis for two booster doses (unvaccinated, primary series only, one booster dose, and at least two booster doses) in 28 jurisdictions is posted here: https://data.cdc.gov/Public-Health-Surveillance/Rates-of-COVID-19-Cases-or-Deaths-by-Age-Group-and/ukww-au2k.
+
+
+
+```{r}
+
+local = "cdc-rates-by-vaccine-status.csv"
+
+library(RSocrata)
+
+dt <- read.socrata("https://data.cdc.gov/resource/54ys-qyzm.json")
+dt %>% setDT
+
+allSitesDataFrame <- ls.socrata("https://soda.demo.socrata.com")
+allSitesDataFrame$title
+
+odUS.by.vax <- COpenData$new(
+  myname = "odUS.by.vax",
+  info =  c (
+    source = "CDC",
+    title.short = "Rates of COVID-19 Cases and Deaths by Vaccination Status",
+    title="Rates of COVID-19 Cases or Deaths by Age Group and Updated (Bivalent) Booster Status",
+    comment ="",
+    Webpage  = "https://covid.cdc.gov/covid-data-tracker/#rates-by-vaccine-status",
+    data="https://data.cdc.gov/Public-Health-Surveillance/Rates-of-COVID-19-Cases-or-Deaths-by-Age-Group-and/54ys-qyzm"
+    ),
+  data = c(
+    socrata = "https://data.cityofchicago.org/resource/f7f2-ggz5.json",
+    csv.cached=".\\github_opencanada-info\\World\\us\\Rates_of_COVID-19_Cases_or_Deaths_by_Age_Group_and_Updated__Bivalent__Booster_Status.csv",
+    csv.local = "cdc-rates-by-vaccine-status.csv"
+  )
+)
+self <- odUS.by.vax
+
+self %>% od.fread("csv.cached")
+self %>% od.view
+
+self %>% od.fwrite(timestamp = T);   
+self %>% od.fwrite(timestamp = F)
+
+self$dt[ , Date:= as.Date(paste(mmwr_week,1),"%Y%U %u") ]
+
+self$dt <- self$dt [outcome     == "death"]
+
+self$dt %>% dt.remove(c( "outcome", "month", "mmwr_week"        ))
+self$dt %>% setcolorder("Date")
+
+self$dt %>%  melt (id=1:7, 
+              measure.vars= patterns(crude="^crude_", age_adj="^age_adj_", monthly_age_adj="^monthly_age_adj_"), value.factor = T )
+
+
+
+g <- self %>% od.plot.layout +
+    geom_point(aes (y=vaccinated_with_outcome, col=vaccination_status  )) + 
+  geom_line(aes (y=unvaccinated_with_outcome  )) + 
+  facet_grid(age_group ~ ., scales = "free")
+g
+g+gg
+  
+
+g <-  self$dt %>%     
+  ggplot() +
+  # geom_line(aes (mmwr_week , vaccinated_with_outcome, col=vaccination_status  )) + 
+  geom_line(aes (Date , unvaccinated_with_outcome  )) +
+  facet_grid(age_group ~ continuity_correction, scales = "free");g
+
+
+g <-  self$dt %>%     
+  ggplot() +
+  geom_point(aes (Date , vaccinated_with_outcome, col=vaccination_status  )) + 
+  geom_point(aes (Date , unvaccinated_with_outcome  )) + 
+  facet_grid(age_group ~ continuity_correction, scales = "free")
+g
+
+g <-  self$dt %>%     
+  ggplot() +
+  geom_point(aes (Date , crude_vax_ir , col=vaccination_status  )) + 
+  geom_point(aes (Date , crude_unvax_ir     )) + 
+  geom_point(aes (Date , crude_irr      ), shape=2) + 
+  facet_grid(age_group ~ ., scales = "free")
+g
+
+
+
+## TEST ZONE ----- 
+
+# https://stackoverflow.com/questions/75678367/melt-data-table-using-patterns-with-automated-extraction-of-measure-names
+
+DT <- data.table(
+    parent.name = words[101:103],
+    parent.dob = as.Date(1:3, origin="2020-01-01"),
+    child_boy = words[11:13],
+    child_girl = words[21:23],
+    child_trans = words[201:203],
+    dob_boy= as.Date(1:3, origin="2010-01-01"),
+    dob_girk= as.Date(1:3, origin="2012-01-01"), 
+    dob_trans= as.Date(1:3, origin="2022-01-01") 
+  )
+  DT
+
+  DT2 <- melt(DT, id.vars = c("parent.name", "parent.dob"),   measure=patterns(dob="^dob_", name="^child_"), value.factor=TRUE, variable.name =  "child")
+  DT2
+  DT2 [child=="1", child:="boy"] [child=="2", child:="girl"][child=="3", child:="trans"]
+ DT2
+
+ 
+x <- melt(DT, id.vars = c("parent.name", "parent.dob"))
+x[, c("variable", "name") := tstrsplit(variable, "_", fixed = TRUE)]
+dcast(x, parent.name + parent.dob + name ~ variable)
+
+
+
+
+
+tidyr::pivot_longer(DT, -(1:2),
+  names_pattern = "(.*)_(.*)", names_to = c(".value", "name"))
+
+
+```

@@ -1,0 +1,189 @@
+
+
+# About {data-icon="fa-info"} 
+
+
+<!-- ## * Sources * -->
+<!-- ## ROW  -->
+
+## ROW {.tabset .tabset-fade data-height=850}
+
+
+
+
+
+<!-- Use menus below to select data sources and parameters. -->
+
+<!-- This App is developed to facilitate investigation related to the increase of deaths among Canadians in late years of the pandemic (Read [more](#about)).   -->
+
+<!-- **Raison d'être**:     -->
+<!-- This App is developed to facilitate investigation into the relationship between the increase of deaths among Canadians and the vaccination (Read [more](#about)). -->
+
+<!-- **Raison d'être**: This App is developed to facilitate investigation in the increase of deaths among Canadians and the vaccination (Read [more](#about)).  
+in late years of the pandemic
+
+In September 2022, Statistics Canada has reported the unusual increase of deaths among Canadians observed since January 2022. This App is built
+-->
+
+<!-- The periods of special interest  -->
+<!-- (between `r period[2]` and `r period[3]` )  -->
+<!-- are marked by vertical lines.  -->
+
+
+<!-- *** -->
+
+<!-- Use menus below to visualize the data. -->
+<!-- Animated image below shows data for  1st dose (atleast1dose), 2nd dose (fully), 3rd dose (additional) and 4th doze (2nd additional). -->
+
+
+<!-- **Raison d'etre**: This  App is developed to facilitate the investigation related to the increase of deaths among Canadians following vaccination   [[Read more](#about)]. -->
+<!-- , which was reported by [Statistics Canada](https://www150.statcan.gc.ca/n1/pub/71-607-x/71-607-x2021028-eng.htm)  -->
+
+
+
+
+
+### Raison d'etre
+
+<!-- **Welcome to _Open Canada Vital Statistics Tracker_  on [OpenCanada.info](http://OpenCanada.info) portal!** -->
+
+<!-- _Open Canada Vaccination and Vital Statistics Tracker_ (Open Canada Tracker, for short)  -->
+
+_Open Canada [Vaccination and Vital Statistics] Tracker_ 
+<!-- (full name: _Open Canada Vaccination and Vital Statistics Tracker_) -->
+is the Web App that visualizes various vital and health-related statistics published by federal and provincial governments of Canada. 
+Such statistics is made publicly available, however is often published in such a way that makes it difficult to use by general public. This interactive Tracker is built to address this gap.
+
+A particular need for the development of this App came from the observation published at the [Statistics Canada's excess mortality dashboard](https://www150.statcan.gc.ca/n1/pub/71-607-x/71-607-x2021028-eng.htm) that there have been  excess deaths observed among young Canadians following the commencement of vaccination of young population in Canada:  
+<br>
+<a href="http://web.archive.org/web/20220922113054/https://www150.statcan.gc.ca/n1/pub/71-607-x/71-607-x2021028-eng.htm"> <img src="image5.png" alt="Screenshot from Statistics Canada's excess mortality dashboard" width="720" border=1 align="center"></a>
+
+The fact that such an important observation has not been made expediently and widely known to general  public by the Canadian official media made this observation even more worrisome. 
+
+It is hoped that this App will help to break the silence and facilitate the much needed open discussion and investigation into why there are _more_ deaths among Canadians _after_ vaccination than _before_ vaccination, in particular, among young and taking into account that covid-related deaths constitute only a fraction of the observed excess deaths.
+
+#### Team
+
+This App is developed and maintained by the
+*OpenCanada.info  group*  -- a group of Canadians with diverse scientific, legal and medical backgrounds that came together to provide support for the [National Citizen’s Inquiry (NCI)](https://nationalcitizensinquiry.ca/). 
+<!-- Subscribe to the [OpenCanada.info Newsletter](https://opencanada.substack.com/) to learn more.  -->
+
+<!-- To join the team, please contact us at email below. -->
+
+Contact: [opencanada.info@protonmail.com]([opencanada.info@protonmail.com])   
+Telegram: <https://t.me/opencanadainfo>    
+Twitter: <https://twitter.om/OpenCanada_info>   
+Substack: <https://opencanada.substack.com>   
+YouTube: <https://www.youtube.com/@opencanada-info> 
+
+<!-- and Open Canada Vaccination and Vital Statistics Tracker hosted on the www.OpenCanada.info portal. -->
+<!-- by a team of responsible Canadian citizen. -->
+<!-- and in support of -->
+
+
+<hr>
+
+
+
+
+
+<!-- Sister Web App: [mortality.watch - Canada ](https://www.mortality.watch/?q=%7B%22c%22%3A%5B%22Canada%22%2C%22Sweden%22%5D%2C%22cs%22%3A0%2C%22ct%22%3A0%2C%22t%22%3A1%2C%22df%22%3A%222010+W01%22%2C%22dt%22%3A%222022+W50%22%2C%22m%22%3A0%7D)  -->
+<!-- |  [US Mortality](https://www.usmortality.com/) | [Germany Mortality](https://de.usmortality.com/) -->
+
+
+<!-- <img src="https://nationalcitizensinquiry.ca/wp-content/uploads/2022/11/Logo_National_Citizens_Inquiry_Canadas_Response_To_Covid_19.jpg" alt="NCI logo" width="100"/> -->
+
+<!-- <iframe width="100%" src="https://www.mortality.watch/?q=%7B%22c%22%3A%5B%22Canada%22%5D%2C%22cs%22%3A0%2C%22ct%22%3A9%2C%22t%22%3A2%2C%22df%22%3A%222014%22%2C%22dt%22%3A%222022%22%2C%22m%22%3A0%7D"> -->
+<!-- </iframe> -->
+
+
+
+2022-2023 © OpenCanada.info
+
+
+<!-- We support but are not affiliated with  -->
+<!-- other national and regional activities that have started in the country, following the declaration of pandemic, aimed at bringing more transparency and  accountability to Canada, including: -->
+<!-- [National Citizen’s Inquiry (NCI)](https://nationalcitizensinquiry.ca/). -->
+
+
+<center>
+<a href="https://nationalcitizensinquiry.ca/"><img src="https://nationalcitizensinquiry.ca/wp-content/uploads/2022/11/Logo_National_Citizens_Inquiry_Canadas_Response_To_Covid_19.jpg"  alt="NCI logo" width="255" height="77" align="center" /></a>
+</center>
+
+
+<!-- ###  -->
+
+### Data Sources
+
+The following data sources are currently monitored by the App. 
+Click on provided links to access the data and available visualizations.
+
+
+##### Statistics Canada: [Web Tracker](https://opencanada.shinyapps.io/info/statcan.Rmd)
+
+- Provisional Weekly death counts, by selected grouped causes of death.
+Table: 13-10-0810-01. Frequency: Weekly.
+- Provisional Weekly death counts, by age group and sex.
+Table: 13-10-0768-01. Frequency: Weekly.
+
+- Live births and fetal deaths (stillbirths), by type of birth (single or multiple). 13-10-0428-01. Frequency: Yearly. Release date: 2021-09-29
+
+<!-- - Crude birth rate, age-specific fertility rates and total fertility rate (live births). Table: 13-10-0418-01. Frequency: Yearly. Release date: 2021-09-29 -->
+<!-- - Fetal deaths (20 weeks or more of gestation) and late fetal deaths (28 weeks or more of gestation) Table: 13-10-0427-01 -->
+<!-- - Perinatal mortality (late fetal deaths and early neonatal deaths) -->
+<!-- Table: 13-10-0714-01  -->
+<!-- - Leading causes of death, infants -->
+<!-- Table: 13-10-0395-01  -->
+<!-- - Deaths and age-specific mortality rates, by selected grouped causes -->
+<!-- Table: 13-10-0392-01 -->
+<!-- - Leading causes of death, total population, by age group -->
+<!-- Table: 13-10-0394-01 (Until 2019 only) -->
+
+<!-- 
+
+##### Open Ontario
+
+- COVID-19 cases in hospital and ICU, by Ontario Health (OH) region
+- Cumulative deaths (new methodology): https://data2.ontario.ca/en/dataset/deaths-by-cause-sex-and-age 
+- https://data.ontario.ca/en/dataset?q=vital+statisticshttps://data.ontario.ca/en/dataset?q=covidhttps://data.ontario.ca/datastore/dump/e760480e-1f95-4634-a923-98161cfb02fa?bom=True
+COVID-19 cases in hospital and ICU, by Ontario Health (OH) region
+- https://data2.ontario.ca/en/dataset/deaths-by-cause-sex-and-age 
+Comments: We are reviewing the data in this record to determine if it can be made open. 
+https://data.ontario.ca/en/dataset/covid-19-vaccine-data-in-ontario
+
+
+-->
+
+##### Public Health Agency of Canada
+
+- [COVID-19 vaccination in Canada](https://health-infobase.canada.ca/covid-19/vaccination-coverage/) 
+<!-- (Figure 1)  -->
+- [COVID-19 Daily Epidemiology Update](https://health-infobase.canada.ca/covid-19/)
+- Cases following vaccination (Figure 5 & Table 2).
+- Severe illness and outcomes - Variation by Age (Figure 7)
+- [Reported side effects following COVID-19 vaccination in Canada](https://health-infobase.canada.ca/covid-19/vaccine-safety)
+- Weekly number of reports of COVID-19 vaccine adverse event reports (Figure 1)
+<!-- - Figure 3. Number of adverse event reports by age group -->
+- Count of reported adverse events of special interest (Table 1)
+
+
+<!-- #### Future work -->
+
+The work is in progress to include the data from other provinces.
+<!-- , as well as the link to the growing list to Sudden Deaths happening in Canada  -->
+
+<!-- To explore other publicly available data-sets, consider using [Open Canada Data Explorer](https://o-canada.shinyapps.io/data) -->
+
+
+
+### Help
+
+- The App plot generates plots automatically and in real-time from the data identified in the Sources section below.
+- Multiple issues with data quality and integrity may become apparent when visualized  by the App, such as those identified below. To investigate these issues in detail please see the visualization for each province separately.
+- The total  value for each age may not equal the sum of values for both sexes
+- The total value for all ages may not equal the sum of values for each age
+- '104W SMA' designates 104-week Simple Moving Average and is the most robust metric for estimating excess deaths.
+- Note that the scale is different for each age.
+
+
+

@@ -1,0 +1,552 @@
+---
+title: "OpenCanada.info: PHAC"
+output: flexdashboard::flex_dashboard
+runtime: shiny
+---
+
+```{r  include=FALSE}
+# phac-data.Rmd = odPhac_covid19.Rmd code to generate
+# 1.1 odCovid.by.age = odPhac_covid19-epiSummary-ageGender.Rds (includes populations)
+# 1.2 odCovid.by.province =  (includes populations)
+# 2 odPhac_vaccination-coverage-byAgeAndSex-overTimeDownload (includes populations)
+# 3.1 odPhac_adverse.reactions.Rds
+
+knitr::opts_chunk$set(echo = F, message=F, warning=F)
+setwd("../OpenCanada.info")
+source("opencanada-base.R")
+```
+
+# COVID-19 Deaths -- by gender and province {data-orientation=columns, data-navmenu="PHAC"}
+
+## Settings: {.sidebar}
+
+<!-- ## *** {.tabset .tabset-fade}  -->
+
+
+```{r read PHAC epi, include=F}
+
+################################################################ # 
+# https://health-infobase.canada.ca/covid-19/current-situation.html -----
+################################################################ # 
+
+
+# # Figure 2. Weekly number of COVID-19  cases (n=4,297,215) in Canada as of January
+# url <- "https://health-infobase.canada.ca/src/data/covidLive/covid19-epiSummary-weeklyEpiCurve.csv"
+# #          date cases deaths
+# #        <IDat> <int>  <int>
+# # 1: 2020-01-18     7      0
+# # 2: 2023-01-21  8426     26
+# NOT INTERESTING
+
+odCovid.by.province <- COpenData$new(
+  myname = "odCovid.by.province",
+  info =  c (
+    source = "PHAC",
+    title = "Deaths by province, relative to province population size, all ages combined",
+    comment ="Figure 1. Types of statistics Count (Rate per 100,000 population) of Types of measures total deaths  of COVID-19, Types of statistics province/territory  as of ...",
+    url  = "https://health-infobase.canada.ca/covid-19"),
+  csv = c(
+    live = "https://health-infobase.canada.ca/src/data/covidLive/covid19-download.csv",    local = "covid19-download.csv"
+  )
+)
+
+# Figure 3. Weekly number of COVID-19 cases deceased by age group in Canada as of January 21, 2023
+odCovid.by.age <- COpenData$new(
+  myname = "odCovid.by.age",
+  info =  c (
+    source = "Public Health Agency of Canada",
+    # source = "PHAC Epi Update:  Covid Cases/Deaths",
+    title = "By age and gender, relative to population size, all provinces combined",
+    title.short = "COVID-19 Deaths -- by age and gender",
+    webpage  = "https://health-infobase.canada.ca/covid-19",
+    comment.priv = "Figure 3. Weekly number of COVID-19 cases deceased by age group in Canada as of January 21, 2023"
+    ), 
+  data =  c(
+    origin="csv.live",
+    csv.live="https://health-infobase.canada.ca/src/data/covidLive/covid19-epiSummary-ageGender.csv",
+    csv.local = "covid19-epiSummary-ageGender.csv"
+  )
+)
+
+self <- odCovid.by.province
+self <- odCovid.by.age
+
+if (F) { # C_OPEN_DATA_USE_STORED_CLASSES) {
+  self <- self$restore.me()
+} 
+if (T) { # read and store.me()
+  if (T) { # C_OPEN_DATA_USE_LOCAL) {
+    self %>% od.fread("csv.local")
+  } else {
+    self %>% od.fread("live")
+    if (F) {
+      self %>% od.fwrite(timestamp = T);   self$fwrite.csv(timestamp = F)
+    }
+  }
+  opendata.view(self)
+}
+if (T) {
+  odCovid.by.province$fLte.Define(
+    function (self) {
+      # Add / remove columns / Compute additional metrics
+      self$dt[, population:= round(numdeaths/ratedeaths * 100000, -3)] 
+      self$dt %>% dt.select (c("date", "prname", "numdeaths_last7", "ratedeaths_last7", "population"))
+      #  filter (selecte by) rows
+      self$dt <- self$dt [prname!="Repatriated travellers"]
+      # rename columns
+      setnames(self$dt, "date", "Date") 
+      setnames(self$dt, "prname", "GEO") 
+      dt.clean.geo.canada(self$dt, "GEO")
+      # self$setDate("date")
+      # self$setGeo("prname")
+      
+      self %>% od.setFactors(c("GEO"))
+      
+      # what are factors
+      self$col.factors <- c("GEO")
+
+      # what are metrics
+      self$col.metrics <- c("numdeaths_last7", "ratedeaths_last7", "population")
+
+      # self$dt <- self$dt %>% melt(1:2, variable.factor = T) # warnings are ok here
+      # 
+      # self$col.factors <- c("GEO", "variable")
+      # self$col.value = "value"
+      # # self$dt[is.na(value), value := 0]
+      # self$dt %>% setorder(-Date) 
+    }
+  )
+  self$fLte(self)
+}
+
+od.view(self)
+self$dt[!is.na(get(self$col.metrics[1])), .SD[.N], by=mget(self$col.factors)] 
+self$input
+self$get.dt()
+self$get.dt.subset()
+# self$get.dt.melted()
+# self$get.dt.melted(subset = T)
+# self$get.dt.summary()
+# self$get.dt.summary(subset = T)
+
+
+self$get.dt() %>% dt.summary(col.factors = self$col.factors, col.metric = self$col.metrics)
+
+self$get.dt.subset() 
+
+self$get.dt() %>% datatable.title() 
+self$get.dt.subset() %>% datatable.title() 
+dt2dt.with.date.as.character %>% datatable.title() 
+
+
+
+if (T){
+  self$store.me()
+}
+odCovid.by.province <- self$clone()
+
+r$cWin1 <- self$clone()
+
+self$input$grid.melted = T
+self$input$grid.summary = T
+# opendata.grid (self)
+
+od.plot (self)
+
+################################################### #
+
+
+
+odCovid.by.age$fLte.Define(
+  function (self) {
+    self$dt[, population:=round(count/rate_per_100000 * 100000, -3)]
+    self$dt[, `Weekly (13W SMA)`:= as.integer(frollmean(count, 4, align = "left", fill = 0)), by = cCovid.by.age$dtfactors]
+    
+    self$dt <- self$dt %>% melt(c(1:4), variable.factor = T) # warnings are ok here
+    
+    self$col.factors <- self$dt %>% names() %>%  .[2:5];  self$col.factors
+    self$col.value =  self$dt %>% names() %>% .[6]; self$col.value # "value"
+    # self$dt[is.na(value), value := 0]
+    
+    # self$dt <- self$dt [status == "deaths"]
+    self$setDate("date")
+  }
+)
+
+
+```
+
+
+## *** 1. PHAC Epi Update:  Covid Cases/Deaths *** {.tabset .tabset-fade}
+### COVID-19 Deaths - by province
+
+```{r}
+
+```
+
+> Deaths by province, relative to population size, all ages combined. 
+csv: <https://health-infobase.canada.ca/src/data/covidLive/covid19-download.csv> (linked at <https://health-infobase.canada.ca/covid-19>)"
+
+
+
+###  COVID-19 Deaths - by age and gender
+
+<!-- , relative to population size, all provinces combined (Canada) -->
+
+
+
+```{r}
+
+# dt [Sex =="Both sexes"] %>%   ggplot() +     guides(x =  guide_axis(angle = 60))  +
+#   geom_line(aes(x=Date, y=rate_per_100000      , col=Sex) )+
+#   facet_grid( Age ~ Sex, scales = "free")
+
+
+q ="Sex==Sex"
+# q = qoute (Sex =="Both sexes")
+q = ' Sex =="Both sexes" '
+
+g <- cCovid.by.age$dt [eval(parse(text=q))]  %>%   ggplot() +     
+  guides(x =  guide_axis(angle = 60))  +
+  theme(legend.position = "bottom")  +
+  geom_line(aes(x=Date, y=`Weekly (13W SMA)`), col="red" )+
+  facet_grid( . ~ Age, scales = "fixed") +
+  
+  labs( title = "COVID-19 Cases deceased, by age group. All sexes and all provinces combined",
+        # subtitle = "All sexes and all provinces combined",
+        caption = paste0 ("Source: https://health-infobase.canada.ca/src/data/covidLive/covid19-epiSummary-ageGender.csv",
+                          "\nGenerated by OpenCanada.info Tracker on ", dateToday),
+        
+        x=NULL, col=NULL
+  )
+
+# g.add.pandemic <- function(g) {
+alp = 0.3
+for (i in 1:length(period)) {
+  g <- g + geom_vline(xintercept=period[i], linetype=5, alpha=alp,  col="darkgrey", size=1)
+}
+# g <- g + xlim(input$date[1], input$date[2])
+g <- g + geom_vline(xintercept=period[1], linetype=1, alpha=alp,  col="darkgrey", size=4)
+
+# }
+
+# g <- g + g.add.pandemic(g)
+g
+
+```
+
+> Source: https://health-infobase.canada.ca/src/data/covidLive/covid19-epiSummary-ageGender.csv
+
+
+### Population 
+
+```{r}
+
+
+g <- cCovid.by.age$dt  %>%   ggplot() +     
+  guides(x =  guide_axis(angle = 60))  +
+  theme(legend.position = "bottom")  +
+  geom_line(aes(x=Date, y=population), col="red" )+
+  facet_grid( Sex ~ Age, scales = "fixed") +
+  
+  labs( title = "COVID-19 Cases deceased, by age group. All sexes and all provinces combined",
+        # subtitle = "All sexes and all provinces combined",
+        caption = paste0 ("Source: https://health-infobase.canada.ca/src/data/covidLive/covid19-epiSummary-ageGender.csv",
+                          "\nGenerated by OpenCanada.info Tracker on ", dateToday),
+        
+        x=NULL, col=NULL
+  )
+
+# g.add.pandemic <- function(g) {
+alp = 0.3
+for (i in 1:length(period)) {
+  g <- g + geom_vline(xintercept=period[i], linetype=5, alpha=alp,  col="darkgrey", size=1)
+}
+# g <- g + xlim(input$date[1], input$date[2])
+g <- g + geom_vline(xintercept=period[1], linetype=1, alpha=alp,  col="darkgrey", size=4)
+
+# }
+
+# g <- g + g.add.pandemic(g)
+g
+
+```
+
+
+
+# COVID-19 Vaccination coverage & Population - by age, gender, province {data-orientation=rows, data-navmenu="PHAC"}
+
+
+
+##  2: *** Vaccination + population,  ***
+
+
+<!-- ```{r eval=FALSE, include=FALSE} -->
+
+<!-- ### By province - all ages - NO dose information ! -->
+
+
+<!-- h3("By province - all ages - NO dose information !") -->
+
+
+<!-- ################################################################ #  -->
+<!-- # https://health-infobase.canada.ca/covid-19/vaccination-coverage/ ##### -->
+<!-- ################################################################ #  -->
+
+<!-- # Figure 1 -->
+<!-- url <- "https://health-infobase.canada.ca/src/data/covidLive/vaccination-coverage-map.csv" -->
+<!-- dtv1  <- fread(url) -->
+
+
+<!-- # Figure 5 -->
+<!-- url <- "https://health-infobase.canada.ca/src/data/covidLive/vaccination-coverage-byVaccineType.csv" -->
+<!-- dtv3  <- fread(url) -->
+
+<!-- ``` -->
+
+<!-- >  -->
+<!-- Source: Public Health Agency of Canada - [COVID-19 vaccination in Canada](https://health-infobase.canada.ca/covid-19/vaccination-coverage/) -->
+
+
+
+### Vaccine administration - by province, dose, age, gender
+
+```{r include=FALSE}
+
+# Figure 3
+cVaccines <- COpenData$new(
+  title = "Vaccine administration - by province, dose, age, gender",
+  csv =  "https://health-infobase.canada.ca/src/data/covidLive/vaccination-coverage-byAgeAndSex-overTimeDownload.csv",
+  url  = "https://health-infobase.canada.ca/covid-19",
+  csv.local = "vaccination-coverage-byAgeAndSex-overTimeDownload.csv",
+  comments.priv="Changed between 2023-02-03 and 2023-02-11"
+)
+
+cVaccines$fread.csv("local")
+# cVaccines$fread.csv("live")
+if (F) {
+  cVaccines$fwrite.csv(timestamp=F, tozip=F, tords=F)
+}
+
+# 
+
+cVaccines$..v()
+cVaccines$dt$prfname   <- cVaccines$dt$pruid <- NULL
+
+cVaccines$dt$age %>% u
+cVaccines$dt$sex %>% u
+
+
+
+cVaccines$dt %>% 
+  setnames("prename", "GEO") %>% 
+  setnames( "week_end", "Date") %>% 
+  setcolorder("Date")
+
+cols <-  cVaccines$dt %>% names %wo% c("GEO"  , "Date"  ,  "sex"   , "age" );cols
+cVaccines$dt [, (cols):= lapply(.SD, as.numeric), .SDcols = cols]
+
+
+setcolorder("Date", "GEO", )
+
+cVaccines$dt [,  population := round( numtotal_atleast1dose / proptotal_atleast1dose  * 100, -2)  ]
+
+
+
+cVaccines$dt %>% melt(id=1:3, measure=patterns(numbertotal="numtotal_", proptotal="proptotal_"))
+
+cVaccines$dt %>% melt(id=1:3, measure=patterns(numbertotal="numtotal_"))
+
+
+cVaccines$dt <- cVaccines$dt[sex=="All sexes"]
+cVaccines$dt$sex <- NULL
+# cVaccines$dt <- cVaccines$dt[ age %ni% c("Not reported", "Unknown", "0–15", "16–69","70–74" , "75–79", "18–69","0–17" )]
+
+cVaccines$factors <- c("GEO", "age") # "sex" 
+
+
+
+
+cols.weekly <- paste0(cols, ".weekly")
+
+cVaccines$dt [, (cols):= lapply(.SD, as.numeric), .SDcols = cols]
+
+# to do shift
+setorder(cVaccines$dt, Date      )
+cVaccines$dt [, (cols.weekly):= lapply(.SD, function(x) {x-shift(x,1) }), .SDcols = cols, by=cVaccines$factors ]
+setorder(cVaccines$dt, - Date )# setorder(dt, - week_end ) # for viewing 
+
+
+cols.metrics.num <- c(   "numtotal_atleast1dose" ,  "numtotal_partially"   , "numtotal_fully"   ,   "numtotal_additional" , "numtotal_2nd_additional" , "numtotal_recent_fullyoradditional"   )
+cols.metrics<- c(   "total_atleast1dose" ,  "total_partially"   , "total_fully"   ,   "total_additional" , "total_2nd_additional" , "total_recent_fullyoradditional"   )
+cols.metrics.prop <-  paste0("prop",cols.metrics)
+cols.metrics.num.weekly <- paste0(cols.metrics.num, ".weekly")
+cols.metrics.prop.weekly <- paste0(cols.metrics.prop, ".weekly")
+
+str_replace(cols.metrics.num, "numtotal_", "")
+
+for (i in 1:length(cols.metrics)) {
+  col.prop.weekly=cols.metrics.prop.weekly[i]
+  col.weekly=cols.metrics.prop.weekly[i]
+  
+}
+# dt[, (cols.metrics.prop.weekly):= lapply(.SD, function(x) {x/population} ), cols.metrics.num.weekly]
+
+
+
+if (T) {
+  dtPop = cVaccines$dt [, .(population = round( numtotal_atleast1dose / proptotal_atleast1dose  * 100, -2) ), by=c("Date", cVaccines$factors) ]
+  
+  # cVaccines$dt$opulation = cVaccines$dt$numtotal_atleast1dose / cVaccines$dt$numtotal_atleast1dose * 100
+  # cVaccines$dt [,  population := round( numtotal_atleast1dose / proptotal_atleast1dose  * 100, -2)  ]
+  
+  if (F) {
+    dtPop [prename== "Canada" & !is.na(population) & 
+             # sex=="f" & 
+             age=="12–17"
+    ] [1:3] # population adds up !
+    
+    dtPop [prename== "Canada" & !is.na(population)   ] [1:11] # population adds up ? does not have 80+
+    dtPop [prename== "Alberta" & !is.na(population)   ] [1:11] # population adds up ? does not have 80+
+    dtPop [prename== "Ontario" & !is.na(population)   ] [1:11] # population adds up ! 80+
+    
+    dtPop$sex %>% u
+    dtPop$age %>% u
+    
+    dt [prename== "Canada"]
+  }
+  
+  
+}
+
+
+if (F) {
+  metric <- "Unnamed: 22" # WHAT ARE THESE??? These are POPULATION for all 7 days of reporting week
+  metric.num <- metric 
+  dt[prename== "Canada" & !is.na(`Unnamed: 22`)]$`Unnamed: 22`
+  
+  dt[!is.na(`Unnamed: 22`)]  %>%   ggplot(aes(x=week_end)) +     
+    guides(x =  guide_axis(angle = 60))  +
+    scale_x_date(date_labels = "%b %Y", date_breaks = "3 months") +
+    facet_grid( prename ~ age, scale="free_y" ) + # ylim(0, NA) +
+    geom_point(aes(y=`Unnamed: 22`, size=3), ) + labs(y=metric, x=NULL)
+  
+  dt[, .SD[1], by= prename ] %>% datatable.title()
+  
+}
+
+period = c(
+  # ymd("2010-01-05"), # early prepandemic, early flu waves 
+  # ymd("2020-01-01"), # four new cause categories added: 3 for covid + NO_INFO
+  ymd("2021-12-01"), # 
+  # ymd("2022-01-01"), 
+  ymd("2022-03-01") # # 
+)
+
+
+# PLOTTIN ------
+
+if (F) {
+  ######################################### #
+  
+  i=1
+  for (i in 1:length(cols.metrics)) { 
+    
+    metric <- cols.metrics[i];metric
+    # metric.num <- cols.metrics.num [i]
+    # metric.prop <- cols.metrics.prop [i]
+    metric.weekly <- cols.metrics.num.weekly [i] 
+    metric.title <- str_replace(metric, "total_", "")
+    
+    
+    g <- cVaccines$dt  %>%   ggplot(aes(x=Date)) +     
+      guides(x =  guide_axis(angle = 60))  +
+      facet_grid( GEO ~ age, scale="free_y" ) +  ylim(0, NA) +
+      
+      
+      labs(y="Doses administered weekly", 
+           x=NULL,          title = metric.title,
+           caption=paste("Generated by OpenCanada.info tracker on", dateToday)
+      )
+    
+    if (T) { # input$vline) {
+      alp = 0.5
+      for (iii in 1:length(period)) {
+        g <- g + geom_vline(xintercept=period[iii], linetype=5, aplha=alp,  col="grey")
+      }
+      # g <- g + xlim(input$date[1], input$date[2])
+    }
+    
+    
+    g <- g + geom_line(aes(y=get(metric.weekly)) ) # , col=i, linetype=i) 
+    
+    ggsave(paste("png/", dateToday,"-", i, "-", metric.title, ".png"), width=12, height=9)
+    
+    print(i)
+    print(metric); 
+    
+  }
+  
+  print(g)
+  
+}
+
+```
+
+
+
+# COVID-19 Vaccince safety - by age {data-orientation=rows, data-navmenu="PHAC"}
+
+## 3: Vaccince safety ----
+
+```{r eval=FALSE, include=FALSE}
+
+
+
+################################################################ # 
+# https://health-infobase.canada.ca/covid-19/vaccine-safety/
+############################################################### ## 
+
+
+url <- "https://github.com/opencanada-info/phac-covid-vaccine-safety/raw/main/side-effects-2023-01-20.csv"
+dt <- fread(url, skip=5)
+saveRDS(dt, 'phac-safety-till-2023-01-06) # accessed 11 feb 2023
+
+
+
+
+```
+
+
+```{r eval=FALSE, include=FALSE}
+
+
+
+self$view.Define( 
+  function (self=self, show="summary") { # cat screwed the dates! better touse glue (.{})
+    # cat(
+    #   "Title: ", self$info[["title"]],
+    #   "\n From ", self$dateMin %>% as.character() ,
+    #   "to",   self$dateMin %>% as.character(), "\n"
+    # ) %>% print
+    
+    self$dt %>% names %>% print
+    self$dt %>% dim %>% print
+    self$dt[c(1, .N)] %>% print
+    # if (show == "summary")
+    #   self$dt %>% dt.get.summary(self$col.factors) %>% print
+    
+    cat("Subset:\n " )
+    self$dt0 %>% dim %>% print
+    self$dt0[c(1, .N)] %>% print
+    
+    # if (show == "summary")
+    #   self$dt0 %>% dt.get.summary(self$col.factors) %>% print
+    # self$dt %>% .[GEO=="Alberta"] %>% print
+  }
+)
+
+
+
+```
+

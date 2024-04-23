@@ -1,0 +1,48 @@
+---
+title: "OpenCanada.info: BC"
+output: flexdashboard::flex_dashboard
+runtime: shiny
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+# Info
+
+
+https://catalogue.data.gov.bc.ca/
+
+https://bcgov.github.io/data-publication/pages/open_data.html
+
+https://www2.gov.bc.ca/gov/content/data/open-data
+https://dpdd.atlassian.net/servicedesk/customer/portals (volleo35)
+
+
+stillbirths
+https://catalogue.data.gov.bc.ca/dataset/metadata-for-bc-vital-events-and-statistics---e04
+
+Seems like nothing useful is publicly available
+
+Data not available, only through special programs:
+https://www.popdata.bc.ca/data_access
+https://www2.gov.bc.ca/gov/content/life-events/statistics-reports/births
+
+
+
+```{r  include=FALSE}
+knitr::opts_chunk$set(echo = F, message=F, warning=F)
+source("lib_opendata.R")
+```
+
+
+```{r odQUICK.CHECK, , eval=F, include=F}
+"Metadata for BC Vital Events and Statistics - E04"
+self = COpenData$new( 
+  data=c( json = "https://catalogue.data.gov.bc.ca/dataset/978d7119-0228-43e3-9df1-55083519950b/resource/a57a6815-b931-41d6-922c-c74996f46bc7/download/births.c-schema.json" ) 
+  )
+# self %>% od.fread(origin="json") 
+
+self %>% od.view()
+self$dt$Date %>% max
+```

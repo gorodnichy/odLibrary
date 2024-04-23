@@ -1,0 +1,381 @@
+---
+title: "Open Canada Tracker"
+# title: "Open Canada Vaccination and Vital Statistics Tracker"
+date: "(`r format(Sys.time(), '%d %B, %Y')`)"
+output:
+  flexdashboard::flex_dashboard:
+    # logo: "OpenCanada-logo-48.png"
+    # favicon: rCanada.ico
+    url: http://www.OpenCanada.info
+    vertical_layout: fill
+    # orientatison:  rows
+    theme: united
+    source_code: "https://github.com/opencanada-info"
+    social: menu
+    navbar:
+    - title: Newsletter
+      href: https://opencanada.substack.com/
+      align: right
+    # - title: Open source
+    #   href: "https://opencanada-info.github.com/"
+    #   align: right
+runtime: shiny # COMMENT THIS OUT TO GENERATE HTML. Make use you source(lib_unshiny) for this
+resource_files:
+- odStatcan.deaths.by.age.Rds
+---
+
+<!-- ```{r 00_vital_meta.Rmd, child = '00_vital_meta.Rmd'} -->
+<!-- ``` -->
+
+
+
+```{r include=FALSE}
+knitr::opts_chunk$set(echo = F, message=F, warning=F)
+source("lib_utils.R")
+source("lib_opendata.R")
+source("lib_unshiny.R")
+```
+
+
+```{r eval=F}
+knitr::knit_exit()
+```
+
+
+# Main dashboard {data-icon="fa-users"}
+
+## --- SIDEBAR ---- {.sidebar data-width="280"} 
+
+```{r select.data}
+
+# selectInput("select.data", "Select data source", 
+#             list(
+#               `PHAC data`=list(
+#                 "odCovid.by.province",
+#                 "odCovid.by.age",
+#               ),
+#               `Open Ontario` = list( 
+#                 "odOntario.vitals.by.month"
+#                 ),
+#               `StatCan` = list( 
+#                 "odStatcan.deaths.by.cause",
+#                 "odStatcan.births",
+#                 "StatCan: Deaths by age" = "odStatcan.deaths.by.age"
+#               )
+#             ),  
+#             selected =  "odStatcan.deaths.by.age"
+# )
+
+selectInput("select.data", "Select data source", 
+            c( 
+              "odStatcan.deaths.by.cause",
+              "odStatcan.births",
+              "StatCan: Deaths by age" = "odStatcan.deaths.by.age"
+              
+            ),  
+            selected =  "odStatcan.deaths.by.age"
+)
+
+
+
+tipify(
+  checkboxInput( "select.data_live", "Use Live instead of Cached",  F),
+  # radioButtons("plot.or.table", NULL, c("Show plot"="graph", "Show Grid"="table), inline = T),
+  # radioButtons("select.data_live", NULL, c("Cached data"=F, "Live data"=T), inline = T),
+  title = "Note: Loading Live data can take several minutes and may not possible if the data source portal is down. Press the button below to load data."
+)
+# . Cached data are used by default and they are updated weekly.
+
+
+actionButton("button.go", "Load data!",width="100%",class = "btn-success")
+
+
+# splitLayout(
+#   actionButton("button.go", "(Re)Load data!", class = "btn-success",  width="100%"), 
+#   actionButton("button.reset", "Reset all", class = "btn-warning",  width="100%")
+# )
+
+hr()
+
+
+observeEvent(    input$button.go, {
+  # observe({  # does not work, as input$select.data is NULL at start....
+  
+  # self <- COpenData$new( myname = "odStatcan.deaths.by.age" )
+  # self <- COpenData$new( myname = "odCovid.by.age" )
+  self <- COpenData$new( myname = "odStatcan.deaths.by.age" )
+  self <- COpenData$new( myname = input$select.data )
+  
+  self <- self %>% od.restore.me()
+  
+  if (input$select.data_live) {
+    self %>% od.fread(origin=self$data[["origin"]])
+    self$fLte(self); 
+    #   self$store.me()
+  }  
+  
+  self$dt %>% setorder(-Date)
+  self$dateMax <- self$dt$Date %>% max(na.rm = T)
+  print.trace.start("observeEvent")
+  self$dt; 
+  self  %>% od.view() 
+  print.trace.end("observeEvent")
+  
+  r$cWin1 <- self$clone()
+})
+
+```
+
+
+```{r}
+
+actionButton("button.filtering.options",
+             NULL,
+             width="100%")
+# observeEvent(input$button.filtering.options, {
+#   label <- if (input$button.filtering.options %% 2 == 0) "Hide" else "Show"
+#   updateActionButton(inputId = "button.filtering.options", label = label)  
+# })
+
+renderUI({
+
+  # req(r$cWin1)
+  # CAN I PUT IT INSIDE shiny.menu.dt.subset??
+  # Maybe there'll be no need to pass input$simplified then?
+  # no it looks like I can't do that...
+  if (input$button.filtering.options %% 2 == 0)
+    tipify(
+      checkboxInput( "simplified", "Use Simplified layout",  T),
+      title = "Simplified layout limits selection to one item only"
+    )
+})
+
+
+renderUI({
+  self <- r$cWin1
+  dt <-  r$cWin1$dt
+  # self$input$simplified = input$simplified # error:can't modify read only variable
+  # shiny.input.for.DtwithDate.with.input(dt, factors=self$col.factors, metrics=self$col.metrics, self$input)
+  
+  if (input$button.filtering.options %% 2 == 0) {
+    updateActionButton(inputId = "button.filtering.options", label = "Hide Data subsetting options")  
+    shiny.menu.dt.subset(dt, factors=self$col.factors, metrics=self$col.metrics, input$simplified)
+  } else {
+    updateActionButton(inputId = "button.filtering.options", label = "Show Data subsetting options")
+    NULL # renderUI (NULL)
+  }
+})
+
+
+
+
+actionButton("button.time.options",
+             "Show/Hide Time options",
+             width="100%",   class="btn-secondary")
+renderUI({
+  if (input$button.time.options %% 2 == 0) {
+    shiny.menu.dt.date(r$cWin1$dt) #, r$cWin1$input)
+  }
+})
+
+
+actionButton("button.plot.options",
+             "Show/Hide Plot options",
+             width="100%",   class="btn-secondary")
+renderUI({    
+  self <- r$cWin1
+  dt <-  r$cWin1$dt
+  if (input$button.plot.options %% 2 == 0) 
+    shiny.menu.dt.plot(dt, factors=self$col.factors, metrics=self$col.metrics)
+})
+
+
+actionButton("button.grid.options",
+             "Show/Hide Table options",
+             width="100%",   class="btn-secondary")
+renderUI( 
+  if (input$button.grid.options %% 2 == 0) 
+    shiny.menu.dt.grid(r$cWin1$dt) 
+)
+
+
+
+```
+
+<!-- --- -->
+<!-- [Debug info](#debug) -->
+
+
+<!-- # Main dashboard {data-icon="fa-users"} -->
+
+```{r observe, eval=T, include=T}
+observe({
+  
+  req(r$cWin1)
+  r$cWin1$input <- input
+  # r$cWin1$dt[, value:=get(metric)]
+  # 
+  # # self <- r$cWin1
+  # #    
+  # # # r$cWin1$dt.input <- r$cWin1$dt
+  # # # r$cWin1$dt.input <- r$cWin1$get.dt.subset()
+  # # # unique(self$dt, on=c("Date", self$dt$col.factors, "value" ))
+  # # 
+  # #   metric <- self$col.metrics[1]
+  # # factors <- self$col.factors
+  # # 
+  # # granularity = aGranularity[8]
+  # # granularity = input$granularity
+  # print.trace.start("observe r$cWin1")
+  # # print(reactiveValuesToList(input) )
+  # # granularity %>% print
+  # 
+  # r$cWin1$dt
+  # r$cWin1 <- r$cWin1 %>% od.add.value.by.granularity (r$cWin1$col.metrics[1], r$cWin1$input$granularity)
+  
+  print.trace.end("observe r$cWin1")
+  
+  #   self$dt[, value:=get(metric)]
+  # 
+  # # if (input$prepandemic){
+  #   self$dt  <- self$dt %>% dt.add.prepandemic.value (self$col.factors, "value")
+  #   
+  #   self$dt <- self$dt%>% melt(measure.vars=c("value.2019", "value", "difference"), variable.factor = T, variable.name = "prepandemic") 
+  # # }
+  
+  # dt <- r$cWin1$get.dt.subset()
+  
+  
+})
+```
+
+
+
+## **** RESULTS ****
+
+<!-- ```{r} -->
+<!-- renderUI( -->
+<!--   shiny.menu.dt.plot(r$cWin1$dt) -->
+<!-- ) -->
+<!-- ``` -->
+
+
+
+`r renderText(r$cWin1$info[["title.full"]])` Cached: `r renderText(r$cWin1$dateStoredMe %>% as.character)` . Last record: `r renderText(r$cWin1$dateMax %>% as.character)` 
+
+### 
+
+<!-- `r renderText(r$cWin1$info[["title.full"]])` (Last record: `r renderText(r$cWin1$dateMax %>% as.character)` ) -->
+
+<!-- [Zoom](#section-deaths-by-cause-weekly)  -->
+
+
+```{r Plot, eval=T, include=T}
+
+add_busy_bar(color = "Red", height = "30px", centered = T)
+
+renderUI({
+  self <- r$cWin1
+  req(self)
+  req(self$input$granularity)
+  
+  # r$cWin1$dt.input <- r$cWin1$dt
+  # r$cWin1$dt.input <- r$cWin1$get.dt.subset()
+  # unique(self$dt, on=c("Date", self$dt$col.factors, "value" ))
+  
+  if (T) { # this should go to observe() !
+    metric <- self$input$metric # self$col.metrics[1]
+    factors <- self$col.factors
+    
+    granularity = aGranularity[8]
+    granularity = self$input$granularity
+    
+    self <- self %>% od.add.value.by.granularity( metric, granularity)
+  }
+  
+  self %>% od.plot()
+})
+
+
+# https://stackoverflow.com/questions/33925430/shiny-plot-results-in-popup-window
+```
+
+<!-- > Source: Statistics Canada - Table `r renderText(r$cWin1$table)`. -->
+
+
+<!-- > Source: `r renderText(r$cWin1$info[["source"]])` -->
+
+<!-- [Statistics Canada - Table `r renderText(r$cWin1$table)` ](https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1310076801). -->
+<!-- ( -->
+<!-- [cached](`r renderText(r$cWin1$url.cached)`) -->
+<!-- ) -->
+<!-- Last record: `r renderText(r$cWin1$dt$Date %>% max(na.rm = T) %>% as.character() )` -->
+
+## *** Table ***
+
+<!-- ```{r} -->
+<!-- shiny.menu.dt.grid2() -->
+<!-- ``` -->
+
+### 
+
+<!-- Table -->
+
+```{r table}
+renderUI({
+  req(r$cWin1)
+  r$cWin1 %>% od.grid()
+})
+
+```
+
+
+
+# Debug {data-orientation=rows}
+
+<!-- # Debug {.hidden data-orientation=rows} -->
+
+<!-- ## --- DEBUG  ---  {.tabset .tabset-fade}  -->
+##
+
+### Debug: input
+
+```{r}
+renderPrint (reactiveValuesToList(input) [ order (names(reactiveValuesToList(input)))] )
+```
+
+### Debug: get.dt
+
+```{r}
+# renderPrint (reactiveValuesToList(r) )
+renderPrint (r$cWin1$dt )
+```
+
+
+### Debug: get.dt.subset
+
+
+```{r}
+# renderPrint ( r$cWin1 %>% od.view() )
+
+
+renderPrint ({
+  self <- r$cWin1
+  dt <- self$get.dt.subset()
+  dt
+})
+
+```
+
+
+
+
+<!-- ```{r odStatCan.Rmd, child = 'odStatCan.Rmd'} -->
+<!-- ``` -->
+
+
+
+```{r eval=T}
+knitr::knit_exit()
+```
+

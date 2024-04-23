@@ -1,0 +1,399 @@
+---
+title: "OpenCanada.info: Statistics Canada"
+output: flexdashboard::flex_dashboard
+runtime: shiny
+---
+
+
+
+```{r global, include=FALSE}
+knitr::opts_chunk$set(echo = F, message=F, warning=F)
+source("lib_opendata.R")
+```
+
+
+```{r odStatCan_sources.Rmd, child = 'odStatCan_sources.Rmd'}
+```
+
+
+```{r example of use, eval=F, include=F}
+
+  # Test the conversion function
+  input_string <- "13-10-0783-01"
+  output_string <- convert_to_numeric_format(input_string)
+  print(output_string)
+  # Test the conversion function
+  input_string <- "1310078301"
+  output_string <- convert_to_original_format(input_string)
+  print(output_string)
+ 
+
+self = COpenData$new( data=c( cansim = "13-10-0395-01" ) ) 
+# Infant mortality rates per 100,000 live births
+self %>% od.fread(origin="cansim") 
+self %>% od.view()
+self$dt$Date %>% max
+```
+
+
+
+# Deaths by age {data-orientation=columns, data-navmenu="StatCan"}
+
+
+
+```{r odStatcan.deaths.by.age, eval=T, include=T}
+
+self <- COpenData$new( myname = "odStatcan.deaths.by.age" )
+self <- self %>% od.restore.me() 
+
+if (F) {
+  self = COpenData$new(
+    myname="odStatcan.deaths.by.age", 
+    info=c(
+      source = "StatCan",
+      caption = "Statistics Canada, Table - 13-10-0768",
+      # title.new = 'Just for testing, This is the same as below! in self$info[[title.short"]]',
+      title = c(
+        full="Provisional weekly death counts, by age group and sex.",
+        short = "Deaths by Age"),
+      webpage = c(
+        live="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1310076801", 
+        cached = "https://github.com/opencanada-info/statcan-13100768-deaths-by-age"),
+      frequency = "Weekly", 
+      updated = "monthly",
+      dateLatestRelease = "2023-03-09", 
+      factors = c("GEO","Age","Sex")
+    ),
+    data=c(
+      origin = "cansim",
+      cansim = "13-10-0768", # or "13-10-0768-01" 
+      zip.cached ="https://github.com/opencanada-info/statcan-13100768-deaths-by-age/raw/main/13100768-2023-02-05.zip", 
+      csv.local="13100768.csv"
+    )
+  )
+  self %>% od.fread(origin="cansim") 
+  self %>% od.fread(origin="csv.local")
+  self$fLte.Define(
+    function (self) {
+      dt <- self$dt
+      dt[, ( names(dt) %wo% c("Date", "GEO", "val_norm","Age at time of death", "Sex") ):= NULL]
+      setnames(dt, "val_norm", "Deaths")  # dt$Characteristics %>% u
+      setnames(dt, "Age at time of death", "Age")
+      dt[, Age := gsub("Age at time of death, ", "", Age)]
+      dt[, GEO := str_replace(GEO, ", place of occurrence", "")]    
+      self %>% od.setColumns(
+        date="Date",
+        factors=c("GEO" ,  "Age","Sex"),  
+        metrics = "Deaths" 
+      )
+      # self$input$factor1 <- c("Quebec" , "Ontario"     ,     "Alberta"  , "British Columbia"     )
+      self$input$factor1 <- c("Alberta" , "British Columbia"     )
+      self$input$factor2 <- c(    "45 to 64 years",  "0 to 44 years"    )
+      self$input$factor3 <- c("Both sexes", "Males"  )
+      self$input$date.start[1] <- ymd("2019-01-01")
+      self$input$date.start[2] <- self$dateMax
+      # self$dt <- self$dt [GEO %ni%  c("Yukon", "Northwest Territories", "Nunavut" )]
+      self$dt %>% setorder(-Date)
+      # self$dt[, (col) := fct_inorder( get(col))] 
+    }
+  )  
+  self$fLte(self); 
+  self %>% od.store.me()
+  rm(self)
+}
+
+self %>% od.add.value.by.granularity (metric="Deaths", granularity=aGranularity[4])
+self$dt$i.value.2019 <- NULL
+self <- self %>% od.add.prepandemic.value ()
+
+
+odStatDeathsByAge <-  self
+
+```
+
+
+
+# Deaths by Cause {data-orientation=columns, data-navmenu="StatCan"}
+
+
+```{r odStatcan.deaths.by.cause}
+
+self <- COpenData$new( myname = "odStatcan.deaths.by.cause" )
+self <- self %>% od.restore.me() 
+
+if (F) {
+  self = COpenData$new(
+    myname="odStatcan.deaths.by.cause", 
+    info=c(
+      source = "StatCan",
+      caption = "Statistics Canada, Table - 13-10-0810",
+      # title.new = 'Just for testing, This is the same as below! in self$info[[title.short"]]',
+      title = c(
+        full="Provisional weekly death counts, by age group and sex.",
+        short = "Deaths by Age"),
+      webpage = c(
+        live="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=1310076801", 
+        cached = "https://github.com/opencanada-info"),
+      frequency = "Weekly", 
+      updated = "monthly",
+      dateLatestRelease = "2023-04-20", # "2023-03-09", 
+      factors = c("GEO", "Cause of death (ICD-10)")
+    ),
+    data=c(
+      origin = "cansim",
+      cansim = "13-10-0810", # or "13-10-0768-01" 
+      csv.local="13100810.csv"
+    )
+  )
+  self %>% od.fread(origin="cansim") # self %>% od.fread(origin=self$data[["origin"]])
+  
+  self$fLte.Define(
+    function (self) {
+      dt <- self$dt
+      dt[, ( names(dt) %wo%  c("Date", "GEO", "val_norm", "Cause of death (ICD-10)") ) := NULL]
+      setnames(dt, "val_norm", "Deaths")  # dt$Characteristics %>% u
+      # setnames(dt, "Age at time of death", "Age")
+      # dt[, Age := gsub("Age at time of death, ", "", Age)]
+      dt[, GEO := str_replace(GEO, ", place of occurrence", "")]    
+      dt[, GEO:=fct_inorder(GEO)]
+      self %>% od.setColumns(
+        date="Date",
+        factors=c("GEO" ,  "Cause of death (ICD-10)"),  
+        metrics = "Deaths" 
+      )
+      # self$input$factor1 <- c("Quebec" , "Ontario"     ,     "Alberta"  , "British Columbia"     )
+      self$input$factor1 <- c("Alberta" , "British Columbia"     )
+      self$input$factor2 <- c(    "45 to 64 years",  "0 to 44 years"    )
+      self$input$date.start[1] <- ymd("2019-01-01")
+      self$input$date.start[2] <- self$dateMax
+      # self$dt <- self$dt [GEO %ni%  c("Yukon", "Northwest Territories", "Nunavut" )]
+      self$dt %>% setorder(-Date)
+      # self$dt[, (col) := fct_inorder( get(col))] 
+      
+    }
+  )  
+  self$fLte(self); 
+  self %>% od.store.me()
+  rm(self)
+}
+
+self %>% od.add.value.by.granularity (metric="Deaths", granularity=aGranularity[4])
+self$dt$i.value.2019 <- NULL
+self <- self %>% od.add.prepandemic.value ()
+
+odStatDeathsByCause <-  self
+```
+
+
+# Births {data-orientation=columns, data-navmenu="StatCan"}
+
+
+```{r odStatcan.births}
+
+self <- COpenData$new( myname = "odStatcan.births" )
+self <- self %>% od.restore.me() 
+self %>% od.view()
+
+self %>% od.fread(origin="cansim")
+ self$fLte(self)
+ self %>% od.view()
+
+if (F) {
+  self = COpenData$new(
+    myname="odStatcan.births", 
+    info=c(
+      source = "StatCan",
+      caption = "Statistics Canada, Table - 13-10-0810",
+      # title.new = 'Just for testing, This is the same as below! in self$info[[title.short"]]',
+      title = c(
+        full="Live births and fetal deaths (stillbirths), by type of birth (single or multiple).",
+        short = "Births"),
+      webpage = c(
+        live="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=13100428", 
+        cached = "https://github.com/opencanada-info"),
+      frequency = "", 
+      updated = "annualy",
+      dateLatestRelease = "2022-09-28",
+      factors = c("GEO", "Cause of death (ICD-10)")
+    ),
+    data=c(
+      origin = "cansim",
+      cansim = "13-10-0428", # or "13-10-0768-01" 
+      csv.local="13100428.csv"
+    )
+  )
+  self %>% od.fread(origin="cansim") # self %>% od.fread(origin=self$data[["origin"]])
+  
+  self$fLte.Define(
+    function (self) {
+      dt <- self$dt
+
+      dt %>% names;
+      dt <- dt [, c(22,21,2,23,24) ] 
+      
+      dt$GEO %>% unique()
+      dt[, GEO := gsub(", place of residence of mother", "", GEO)]
+      dt[, GEO:=fct_inorder(GEO)]
+      
+      dt <- dt [
+        Date> ym("2010-01") &
+          # GEO != "Northwest Territories including Nunavut" &
+          # GEO != "Yukon" &
+          `Type of birth (single or multiple)` == "Total, single and multiple births"] %>% setorder(-Date)
+      
+      dt$`Type of birth (single or multiple)` <- NULL
+      setnames (dt, "Live births and fetal deaths (stillbirths)", "type")
+      
+      dt$type %>% u
+      dt[1:2]
+      # setnames(dt, "val_norm", "Annually")  # dt$Characteristics %>% u
+      
+      dt.wide <- dt %>% dcast (Date + GEO ~ type, value.var = "val_norm" )
+      
+      # It should be in rates per thousand TOTAL 1000 BIRTHS (not a percentage and not per 1000 live births.
+      
+      dt.wide [ , `Stillbirths per thousand Total births` := round (1000 *`Fetal deaths (stillbirths)` / `Total, births`,0)] %>% setorder(GEO, -Date)
+      
+      dt <- dt.wide
+      dt %>% names
+      
+      self$dt <- dt
+ 
+      self %>% od.setColumns(
+        date="Date",
+        factors=c("GEO"),  
+        metrics = dt %>% names %>% .[3:6] 
+      )
+      
+    }
+  )  
+  self$fLte(self)
+  self %>% od.store.me()
+  rm(self)
+}
+odStatBirths <-  self
+```
+
+
+
+```{r odStatcan.fetaldeaths}
+
+self <- COpenData$new( myname = "odStatcan.fetaldeaths" )
+self <- self %>% od.restore.me() 
+self %>% od.view()
+
+self %>% od.fread(origin="cansim")
+ self$fLte(self)
+ self %>% od.view()
+
+if (F) {
+  self = COpenData$new(
+    myname="odStatcan.fetaldeaths", 
+    info=c(
+      source = "StatCan",
+      # caption = "Statistics Canada, Table - 13-10-0810",
+      # title.new = 'Just for testing, This is the same as below! in self$info[[title.short"]]',
+      title = c(
+        full="Fetal deaths (20 weeks or more of gestation) and late fetal deaths (28 weeks or more of gestation).",
+        short = "Births"),
+      webpage = c(
+        live="https://www150.statcan.gc.ca/t1/tbl1/en/tv.action?pid=13100428", 
+        cached = "https://github.com/opencanada-info"),
+      frequency = "annualy", 
+      updated = "annualy",
+      dateLatestRelease = "2023-04-20", # "2023-03-09", 
+      factors = c("GEO", "Cause of death (ICD-10)")
+    ),
+    data=c(
+      origin = "cansim",
+      cansim = "1310042701", # or "13-10-0768-01" 
+      csv.local="1310042701.cvs"
+    )
+  )
+  self %>% od.fread(origin="cansim") # self %>% od.fread(origin=self$data[["origin"]])
+  
+  self$fLte.Define(
+    function (self) {
+      dt <- self$dt
+
+      dt %>% names;
+      dt <- dt [, c(1,20,10,19,2,21) ] 
+      
+      dt$GEO %>% unique()
+      dt[, GEO := gsub(", place of residence of mother", "", GEO)]
+      dt[, GEO:=fct_inorder(GEO)]
+      
+      dt <- dt [
+        Date> ym("2010-01") &
+          # GEO != "Northwest Territories including Nunavut" &
+          # GEO != "Yukon" &
+          `Type of birth (single or multiple)` == "Total, single and multiple births"] %>% setorder(-Date)
+      
+      dt$`Type of birth (single or multiple)` <- NULL
+      setnames (dt, "Live births and fetal deaths (stillbirths)", "type")
+      
+      dt$type %>% u
+      dt[1:2]
+      # setnames(dt, "val_norm", "Annually")  # dt$Characteristics %>% u
+      
+      dt.wide <- dt %>% dcast (Date + GEO ~ type, value.var = "val_norm" )
+      
+      # It should be in rates per thousand TOTAL 1000 BIRTHS (not a percentage and not per 1000 live births.
+      
+      dt.wide [ , `Stillbirths per thousand Total births` := round (1000 *`Fetal deaths (stillbirths)` / `Total, births`,0)] %>% setorder(GEO, -Date)
+      
+      dt <- dt.wide
+      dt %>% names
+      
+      self$dt <- dt
+ 
+      self %>% od.setColumns(
+        date="Date",
+        factors=c("GEO"),  
+        metrics = dt %>% names %>% .[3:6] 
+      )
+      
+    }
+  )  
+  self$fLte(self)
+  self %>% od.store.me()
+  rm(self)
+}
+odStatBirths <-  self
+```
+
+
+
+
+
+
+## --- SIDEBAR ---- {.sidebar data-width="250"} 
+
+ssdfdsf
+
+
+## --- RESULTS ---  {.tabset .tabset-fade} 
+
+### Plot
+
+sdfsd
+
+### Table
+
+
+sdfsdf
+
+
+<!-- # Debug  -->
+
+<!-- ## ... -->
+
+
+
+
+```{r STOP_HERE, include=FALSE}
+knitr::knit_exit()
+```
+
+
+

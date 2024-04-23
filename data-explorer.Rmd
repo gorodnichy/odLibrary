@@ -1,0 +1,966 @@
+---
+title: "Open Canada Data Explorer"
+output:
+  flexdashboard::flex_dashboard:
+  vertical_layout:  scroll # fill # scroll
+  orientation: columns # rows
+  social: menu
+  source_code: embed
+runtime: shiny
+---
+
+
+```{r global, include=FALSE}
+knitr::opts_chunk$set(echo = F)
+
+if (T) {  
+  library(shiny)
+  library(shinyBS) # https://stackoverflow.com/questions/33925430/shiny-plot-results-in-popup-window https://stackoverflow.com/questions/61667924/create-a-small-window-to-describe-the-meaning-of-filters-in-shiny
+  
+  
+  
+  library(magrittr);   library(ggplot2); 
+  # library(dtplyr)
+  # library(dplyr)
+  
+  library(lubridate,  quietly=T); options(lubridate.week.start =  1)
+  library(data.table); options(datatable.print.class=TRUE); options(datatable.print.rownames = T)
+  # options(datatable.print.nrows = 300) # 100
+  options(datatable.print.topn=3) # 5
+  
+  # library(dygraphs);   
+  # library(ggpubr)
+  library(DT); library(plotly);   
+  
+  library(stringr); library(forcats) 
+  library(ckanr);   library(cansim)
+  
+  options(digits = 3)
+  # options(max.print = 100) # 1000
+  options(scipen = 999) # remove scientific notation
+  
+  
+  
+  
+  
+  dateToday <- format(Sys.time(), '%d %B, %Y') %>% dmy; dateToday
+  
+  "%wo%" <- function(x, y) setdiff(x,y) 
+  # "%ni%" <-  Negate(%in%)
+  
+  yesno <- c("Yes", "No")
+  
+  
+  # r <- reactiveValues() -----
+  
+  
+  if ( shiny::isRunning() ) {  
+    r <- reactiveValues()
+  } else {
+    r <- list()
+  }
+  
+  reset.reactive <- function() {
+    # r$filesOpened = 0
+    r$dtAll <- NULL
+    r$dt <- NULL
+    r$dt0 <- NULL
+    r$dt00 <- NULL
+    r$filter = NULL
+    r$cols = 1
+  }
+  
+  reset.reactive()
+  
+  
+  datatable.title <- function(dt, title=NULL) {
+    # https://rstudio.github.io/DT/options.html
+    dt %>% DT::datatable (
+      filter = "top",  caption = title, rownames=F, extensions =  c('ColReorder', 'Buttons'),
+      options = list(
+        dom = 'Blfrtip',
+        # paging = FALSE, 
+        # pageLength=50, scrollX='400px', # horizontal scroll
+        scrollX = TRUE,       scrollY = "600px",
+        
+        colReorder = TRUE,
+        # lengthMenu = list(c(10,25,100,-1), c(5,10,25,50,"All")),
+        lengthMenu = list(c(10,25,100,-1), c(5,10,25,50,"All")),
+        buttons = c('copy', 'csv', 'excel', 'pdf', 'print') 
+      ) )
+  }
+  
+  dt.findCategoricalColumns <- function (dt) {
+    cols  <- c (dt[, which(sapply(.SD, is.factor))], dt[, which(sapply(.SD, is.character))] );cols
+  }
+  
+  
+  
+  dt.findColumnsByType <- function (
+    dt, is.what=function(x){is.ordered(x) | is.integer(x) | is.character(x)}
+  ) {
+    cols <- names(dt[sapply(dt, is.what)]); cols
+  }
+  
+  dt.findColumnsByFunctionInNthRow <- function (dt, is.what=function (x) {x>0}, rows_to_use=1) {
+    # cols <- names(dt[sapply(dt, is.what)]); cols
+    cols  <- dt[rows_to_use, which(sapply(.SD, is.what))];cols
+  }
+  
+  
+  dt.convertColumnToOrdered <- function(dt, cols) {
+    # for (col in cols) dt[, (col) := ordered(dt[[col]])] #fastest
+    # or 
+    dt[, (cols):=lapply(.SD, ordered), .SDcols=cols]
+    # dt[, cols] <- lapply(dt[, cols, with = FALSE], ordered)
+  }
+}
+
+```
+
+
+
+# Make selection {.sidebar}
+
+
+
+```{r UI: select.data_source select.data_address}
+
+popify(
+  # tipify(
+  selectInput(
+    "select.data_source",  "Select data source:",  width="100%",
+    choices = c( 
+      
+      "Statistics Canada" = "statcan",
+      "Ontario open data" = "ontario",
+      "URL"= "url",
+      "Hard drive" = "local",
+      "Upload "= "upload")
+  ),
+  title = "Tip:",
+  content = "You can open local file by providing its full name",
+  placement = "right", trigger = "hover"
+  #   content = paste0("1) Read from hard drive (working directory only)\n 2) Upload from hard drive (small file only)")
+  # )
+)
+
+
+
+renderUI({ 
+  req(input$select.data_source)
+  switch (
+    input$select.data_source,
+    
+    "local" = {   
+      aFiles <- list.files(path=".", pattern=".csv", all.files=FALSE,    full.names=FALSE) # pattern = "^[a-lr]",
+      # paste0("Select a .csv file from your working (", getwd(), ") directory"),
+      tipify(
+        selectInput ("select.data_address", paste0("Select a file"), choices = aFiles,  width="100%",
+                     selected = aFiles[1]
+                     # "NEXUS-PIK Session Details 2020706 2020920.csv-10-10.csv"
+        ),
+        "Tip: If you don't see your file, change working directory")
+    } ,
+    
+    "url" = 
+      textInput ("select.data_address", paste0("Type URL ") ),
+    
+    
+    
+    "upload" = 
+      tipify(
+        fileInput("select.data_address", h6("Choose CSV file:"), multiple = F, accept = c("text/csv", "text/comma-separated-values,text/plain", ".csv")),
+        "Only small files (less than 1 Mb) cane be uploaded"), 
+    
+    "statcan" = 
+      textInput("select.data_address",  
+                # tags$a(href="https://www150.statcan.gc.ca/n1/en/type/data", "Enter StatCan Table number. If you don't know it, click on this link to search for it", target="_blank"),
+                "Enter StatCan Table number:", # (Leave blank to search by keyword):",
+                "13-10-0768-01", width="100%"),
+    
+    "ontario" = 
+      textInput("select.data_address",  
+                "Enter Ontario Table number: ",  "97622ce6-c06a-4970-afe5-be540c748f24", width="100%") # ,  "Upload .csv (small file only)")
+    
+    
+    # https://data.ontario.ca/dataset/deaths-involving-covid-19-by-vaccination-status
+    # https://data.ontario.ca/dataset/deaths-involving-covid-19-by-vaccination-status/resource/2aa6e2ce-40de-4910-a737-81762e014b0b
+    # https://data.ontario.ca/dataset/1375bb00-6454-4d3e-a723-4ae9e849d655/resource/2aa6e2ce-40de-4910-a737-81762e014b0b/download/deaths_by_vac_status.csv
+    # URL: https://data.ontario.ca/dataset/1375bb00-6454-4d3e-a723-4ae9e849d655/resource/2aa6e2ce-40de-4910-a737-81762e014b0b/download/deaths_
+    
+  )
+}) 
+# )
+
+
+
+splitLayout(
+  actionButton("button.add_data", "Add data!", class = "btn-success",  width="100%"), 
+  actionButton("button.reset", "Reset all", class = "btn-warning",  width="100%")
+)
+
+
+
+hr()
+
+```
+
+```{r UI: select.columns var.X}
+
+renderUI({   
+  req(r$dtAll); 
+  sliderInput('slider.sample_size', 'Sample Size', min=1, max=nrow(r$dtAll), value=nrow(r$dtAll))
+})
+
+renderUI({   
+  req(r$dt);   
+  selectInput( "select.columns", "Choose columns:", r$dt %>% names,
+               c("Date", "GEO", "val_norm"),
+               # r$dt %>% names %>% .[1:5],
+               # c("Date", "val_norm", "Characteristics"),
+               multiple = T,  width="100%")
+})
+
+
+renderUI({   
+  req(r$dt);  
+  actionButton("button.apply", "Apply changes!", class = "btn-primary",  width="100%") 
+})
+
+
+
+
+renderUI({   
+  req(r$dtAll);   
+  checkboxGroupInput("check.grid_or_plot", NULL,
+                     c("Show Grid" = "grid", "Show Graph" = "graph"), 
+                     c("grid", "graph"), inline = T )
+})
+
+
+####### START var.X. Maybe automate it?
+
+# 
+# aTypes <- c("Date", "Time", "numeric", "factor")
+# renderUI({
+#   selectInput("type.var.X", NULL, aTypes, r$dt0[[input$var.X]] %>% class)
+# })
+# 
+# renderUI({
+#   r$dt0[[input$var.X]] %>% unique()
+# selectInput('choice.var.X', "Select:", r$dt0[[input$var.X]] %>% unique(), multiple=T) #, selectize=F, size=5 )
+# })
+
+# renderUI({
+#   r$dt0[[input$var.X]] %>% unique()
+# selectText('filter.var.X', "Filter:", multiple=T, 1) 
+# })
+
+# observe( {
+#   
+#   req(r$dt0)
+#   
+#   r$dt0[[input$var.X]] <- switch(input$type.var.X,
+#                                        "factor" = r$dt0[[input$var.X]] %>% as.ordered()
+#   )
+# 
+#   r$dt00 <- r$dt0[ input$var.X %in% input$choice.var.X]
+# }) 
+
+# checkboxInput("var.X.time", strong( "This is the time/date variable" ) , T)
+# 
+# renderUI({   req(input$var.X.time);  
+#   dt <- r$dt
+#   dt[[input$var.X]] <- dt[[input$var.X]] %>% as.Date()
+# })
+
+####### END
+
+
+renderUI({   
+  req(r$dt0);
+  cols <- r$dt0 %>% names
+  # cols2 <- names(r$dt0[sapply(r$dt0, is.factor)])
+  cols2 <- dt.findCategoricalColumns (r$dt0)
+  
+  flowLayout(
+    selectInput( "var.X", "X:",  cols),
+    selectInput( "var.Y", "Y:",  cols),
+    selectInput( "var.Colour", "Colour:",  c("None", cols)),
+    selectInput( "var.Size", "Size:",  c("None", cols)),
+    selectInput( "var.facetX", "Vertical  facets:",  c(None='.', cols2)),
+    selectInput( "var.facetY", "Horizontal facets:",  c(None='.', cols2)),
+    
+    checkboxInput('jitter', 'Jitter', value = F),
+    checkboxInput('smooth', 'Smooth', value = F),
+    checkboxInput('line', 'Lines', value = F)
+  )
+})
+
+
+```
+
+
+
+
+```{r UI: filter and transform}
+
+
+
+
+# 
+# 
+# renderUI({   
+#   req(r$dt);   
+#   actionButton( "button.filters", "Add Filter",width = "100%")
+# })
+# 
+# 
+# renderUI({   
+#   req(r$dt);   
+#   textInput( "text.search", NULL, placeholder="Enter keyword and press Search")
+# })
+# 
+
+
+
+
+renderUI({   
+  req(r$dt);   
+  actionButton( "button.rename", "Rename fields and values", width = "100%")
+})
+
+
+renderUI({ req(r$dt);
+  popify(
+    textInput("filter", "Enter filter:", "", 
+              placeholder="(GEO %in% c('AB', 'BC')) & (sex=='male') & (year>2015)", width="100%"),
+    title = "Use R syntasis to define flters. ",
+    content = paste0( "Example:
+  '(GEO %in% c('AB', 'BC')) & (sex=='male') & (year>2015)' ") ,
+  placement = "left", trigger = "hover"
+  )
+  
+})
+
+
+
+
+# # Rename variable names and values
+# 
+# 
+# splitLayout(
+#   renderUI({
+#     req(input$button.rename)
+#     if (input$button.rename %% 2 == 0)
+#       textInput("textA", "Replace this text ..")
+#   }),
+#   renderUI({
+#     req(input$button.rename)
+#     if (input$button.rename %% 2 == 0)
+#       textInput("textB", ".. with this text")
+#   })
+# )
+# 
+# splitLayout(
+#   renderUI({
+#     if (input$button.rename %% 2 == 0)
+#       textInput("colA", "Rename this variable name ..")
+#   }),
+#   renderUI({
+#     if (input$button.rename %% 2 == 0)
+#       textInput("colB", ".. with this variable name")
+#   })
+# )
+
+
+# 
+# renderUI({   
+#   req(r$dt);   
+#   actionButton("button.join", "Join with another dataset",  class =  "btn-primary", width="100%")
+# })
+# 
+
+
+
+
+```
+
+
+```{r SERVER: observe}
+shinybusy::add_busy_bar(color = "Red", height = "40px", centered = T)
+
+# *** r$dtAll=dt=dt0 ***#####
+
+
+observeEvent(input$button.add_data, {
+  req(input$select.data_source) 
+  req(input$select.data_address) 
+  #   if (str_length(input$select.data_address) > 2) {
+  r$dtAll <- switch ( input$select.data_source,
+                      "local" = fread(input$select.data_address, stringsAsFactors = F),
+                      "url" = fread(input$select.data_address, stringsAsFactors = F),
+                      "upload" = {
+                        
+                        file <- input$select.data_address;
+                        ext <- tools::file_ext(file$datapath);
+                        req(file);
+                        validate(need(ext == "csv", "Please upload a csv file"));
+                        fread(file$datapath, stringsAsFactors = T)
+                      },
+                      "statcan" = cansim::get_cansim(input$select.data_address) %>%  setDT() , # "13-10-0810-01"
+                      
+                      "ontario" = fread(ckanr::resource_show(id = input$select.data_address) [["url"]])
+  )
+  
+  # r$dtAll <- readr::type_convert(r$dtAll) %>% setDT
+
+    # r$dt <- r$dtAll[sample(nrow(r$dtAll), input$slider.sample_size)] # CRUSHES  
+  r$dt <- copy(r$dtAll)
+  
+  r$columns <- input$select.columns
+   
+  r$dt0 <- r$dt [, r$columns , with=F]
+  r$dt0 <- copy(r$dtAll)
+  
+  
+  req(r$dtAll)
+  # if ( ! is.null(r$dtAll) ) {
+  #   r$filesOpened <- r$filesOpened + 1
+  # }
+})
+
+
+# observe({
+observeEvent(input$button.apply, {
+  
+  # req(r$dtAll, input$slider.sample_size, input$select.columns)
+    req(r$dtdt, input$select.columns)
+  
+  
+  # r$dt <- r$dtAll[sample(nrow(r$dtAll), input$slider.sample_size)] # CRUSHES
+  r$columns <- input$select.columns
+  
+      
+  r$dt0 <- r$dt [, r$columns , with=F]
+  
+  # tryCatch({
+  #   
+  #   if (is.null(r$filter)) {
+  #     r$dt0 <- r$dt [, input$select.columns, with=F]
+  #   } else {
+  #     r$dt0 <- r$dt [eval(parse(text = r$filter)), input$select.columns, with=F]
+  #   }
+  # }, 
+  # error = function(err) {
+  #   showNotification(err, duration = 10)
+  #   return(err)
+  # }
+  # 
+  # )
+  
+  
+}) 
+
+
+
+observe( {
+  r$variables <- c(input$var.X,  input$var.Y, input$var.Colour, input$var.Size, input$var.facetX, input$var.facetY) 
+}) 
+
+
+
+observeEvent(input$button.apply, {
+  
+  r$filter=input$filter
+  
+  # if  (str_length(input$textA)>0 & str_length(input$textB)>0) {
+  #   cols <- names(r$dt0)
+  #   r$dt[, (cols) := lapply(
+  #     .SD, function (x) { gsub(input$textA, input$textB, x) } ),
+  #     .SDcols = cols]
+  # }
+  # 
+  # if  (str_length(input$colA)>0 & str_length(input$colB)>0) { 
+  #   setnames(r$dt, input$colA, input$colB)
+  # }
+  
+})
+
+
+
+
+```
+
+
+<!-- # Data Preview -->
+
+# Visualize
+<!-- # Extract -->
+
+
+## ******* Tables ******* 
+
+<!-- ## ********************** {.tabset} -->
+
+
+<!-- Grid   -->
+
+```{r OUT: Grid}
+renderUI({
+  req(r$dt);
+  fluidPage(
+    fluidRow(
+      column(width=6, 
+             renderUI({
+               req(r$dt);
+               # checkboxInput("a0.search.details", strong( "Show selected columns only" ), T )
+               
+               checkboxGroupInput("check.show", NULL,
+                                  c("Show all columns" = "selected.columns",
+                                    "Show interactive" = "interactive") )
+             })
+      ),
+      column(width=6, 
+             renderUI({
+               req(r$dt);
+               numericInput( "rows", "Number of top/bottom rows to show", width="100%", 2, 1, r$dt %>% nrow(),1 )
+             })
+      )
+    ),
+    fluidRow( 
+      column (width=12, 
+              renderUI({
+                req(r$dt, input$button.add_data);
+                if (input$button.add_data > 0)
+                  
+                  radioButtons ("check.printDT", "Show:",  width="100%", inline = T,
+                                choices = c(
+                                  "Summary" = "summary",
+                                  "Summary (Categorical)" = "summary2",
+                                  "Structure" = "str",
+                                  "Table "= "table",
+                                  "Table (with types)" = "head",
+                                  "Interactive Table (Search/Save)" = "interactive"
+                                  
+                                ), selected = "head"
+                  )
+              })
+      )
+    ),
+    
+    fluidRow( 
+      column (width=12, 
+              
+              
+              # print result #####
+              
+              renderUI({
+                
+                # dt <- r$dt
+                req(r$dt)
+                req(input$check.printDT)
+                
+                if ( "selected.columns" %in% input$check.show ) { # a0.search.details == T
+                  dt <- r$dt
+                } else {
+                  dt <- r$dt0
+                }
+                # dt %>% renderPrint
+                
+                switch (input$check.printDT,
+                        "nothing" = NULL,
+                        "str" = renderPrint( dt %>% str),
+                        "summary" = renderPrint( dt %>% summary),
+                        "summary2" = {
+                          
+                          cols = dt %>% names
+                          dt0 <- copy(dt)
+                          dt0[, (cols):=lapply(.SD, as.character), .SDcols = cols]
+                          dt0[, (cols):=lapply(.SD, as.ordered), .SDcols = cols]
+                          
+                          renderPrint( dt0 %>% summary)
+                        },
+                        "head" = renderPrint( dt[c(1:input$rows, (.N-input$rows+1):.N) ] ),
+                        
+                        "table" =   renderTable( 
+                          dt[c(1:input$rows, (.N-input$rows+1):.N) ], 
+                          rownames = T ),
+                        
+                        # dt0 <- r.dtExcess() [, Date:=format(Date,'%Y-%m-%d')] [order(-Date)]
+                        
+                        "interactive" = renderDataTable( datatable.title( dt, "Click on column names to sort. Filter by typing in boxes under column names. Save selected data by clicking the buttons") )
+                        
+                )
+                
+                
+                
+              })
+              
+      ) # column
+    ) # fluidrow
+  ) #fluidpage
+  
+}) # renderUI
+```
+
+
+
+
+
+```{r ggplot, out.width = "100%", out.height = "100%"}
+
+# https://garrettgman.github.io/rmarkdown/flexdashboard/shiny.html#component_layout
+# https://shiny.rstudio.com/reference/shiny/latest/fillRow.html
+# https://shiny.rstudio.com/articles/gadget-ui.html#fillrowfillcol
+# https://jjallaire.shinyapps.io/shiny-ggplot2-brushing/
+# https://jjallaire.shinyapps.io/shiny-ggplot2-diamonds/
+
+# ```{r ggplot, out.width = "10", out.height = "10"} {data-width=400}
+
+renderUI({
+  req(r$dt);
+  checkboxInput("plot.interactive", "Show interactive" , F )
+})
+
+# theme_set(theme_bw())
+
+renderUI({ 
+  
+  req(r$dt0);
+  dt <- r$dt0
+  
+  
+  # g <- NULL
+  
+  if (T) {
+    
+    # if (input$var.Y != "") {
+    
+    g <- 
+      ggplot(dt, aes_string(x=input$var.X, y=input$var.Y)) +
+      # ggplot2::diamonds %>%  ggplot(aes_string(x="table", y="price")) +
+      
+      geom_point() + 
+      # coord_flip() +
+      #       scale_y_continuous(breaks = (0:10)*10,limits=c(0,100)) +
+      # scale_fill_brewer(palette = "Greens", direction = 1) +   #scale_fill_grey(0.3, 0.9) +
+      
+      
+      
+      # coord_cartesian(ylim = c(0, 100)) +
+      # ylim(0, 100) + # coord_cartesian(xlim = c(0, 100))
+      # guides(fill="none", col="none") +
+      theme_bw() +
+      theme(legend.position = "bottom") +
+      
+      #  # scale_y_log10(breaks = c(1, seq(0, 1, 0.1))) +
+      #     scale_y_log10(breaks = trans_breaks('log10', function(x) 10^x) ) +
+      # # scale_y_log10(breaks = trans_breaks('log10', function(x) 10^x), labels = trans_format('log10', math_format(10^.x))) +
+      
+      labs(
+        # title= title,
+        # subtitle=paste0("Dates: ", from, " - ", to),
+        # # caption = "Change since previous period is marked by arrow.",
+        # caption="Green: Current period. Red: Previous period",
+        # # caption="Cross indicates historical average. Change since last period marked by arrow",
+        # #  y="Transactions",
+        y=NULL,
+        x=NULL
+      ) 
+    
+    
+    
+    if (input$var.Colour != 'None')
+      g <- g + aes_string(color=input$var.Colour)
+    if (input$var.Size != 'None')
+      g <- g + aes_string(size=input$var.Size)
+    
+    facets <- paste(input$var.facetX, '~', input$var.facetY)
+    if (facets != '. ~ .')
+      g <- g + facet_grid(facets, scales = "free")
+    
+    if (input$jitter)
+      g <- g + geom_jitter()
+    if (input$smooth)
+      g <- g + geom_smooth()
+    if (input$line)
+      g <- g + geom_line()
+    
+    
+    # renderPlot(g)
+    
+    if (input$plot.interactive) {
+      renderPlotly( g %>% ggplotly )
+    } else {
+      renderPlot(g)
+    }
+    # 
+  }
+})
+
+
+
+```
+
+
+<!-- # Transform -->
+<!-- # Compute Statistics -->
+
+```{r Tabulate, eval=FALSE, include=FALSE}
+
+
+```
+
+<!-- # Modify data {-} -->
+
+```{r echo=FALSE}
+
+# dt[c(1:10, (.N-9):.N)] %>% datatable(filter="top") %>% htmlwidgets::saveWidget(paste0(path,".html"))
+```
+
+
+<!-- # Data Catalog -->
+# Search
+
+
+<!-- ### Search results -->
+
+You can search dataset by browsing official data catalogs at the links provided, or by entering a keyword below.
+
+Official data catalogs:  
+
+- https://www150.statcan.gc.ca/n1/en/type/data
+- https://data.ontario.ca/
+
+```{r ---search}
+
+flowLayout(
+  # renderUI({
+  #   if (input$a1.search.yes.no == "Yes") {
+  #     selectInput("a0.search.what",  "Select source:",
+  #                 c("StatCan Tables", "Open Ontario data") )
+  #   }
+  # }), 
+  renderUI({
+    # if (str_length( input$select.data_address) < 3 ) 
+    {
+      # if (input$a1.search.yes.no == "Yes") {
+      textInput("text.keyword", "Enter keyword", "vital")
+    }
+  }), 
+  
+  renderUI({   
+    req(input$text.keyword);  
+    actionButton("button.search", "Search!", class = "btn-primary") 
+  })
+  
+)
+
+
+r.dt0  <- eventReactive(input$button.search, {
+  req(input$text.keyword)
+  if (input$select.data_source == "statcan") {
+    dt0 <- search_cansim_cubes(input$text.keyword) %>% setDT()
+    
+    # "frequencyCode", , "subjectEn"
+    cols <- c("cansim_table_number", "cubeTitleEn", "dimensionNameEn", "surveyEn")
+    dt0 <- dt0[,cols, with =F]
+    dt0
+    
+  } else { # "ontario") {
+    
+    ckanr_setup(url = "https://data.ontario.ca/")
+    res <- resource_search(q = paste0("name:",input$text.keyword), as = "table")
+    # res$count #7
+    dt0 <- res$results %>% setDT
+    cols1 <- c("id", "name", "original_url", "description", "data_range_start", "data_range_end")
+    dt0 <- dt0[,cols1, with =F]
+  }
+  dt0
+})
+
+observe({
+  r$dt.found <- r.dt0()
+})
+
+# Show result (downloaded table) --- --
+
+flowLayout(
+  renderUI({
+    req(r.dt0())
+    h4( paste0("Found ", r.dt0() %>% nrow," tables." ) )  # Paste the table id/No into box."
+  }),
+  renderUI({
+    if (r.dt0() %>% nrow > 0) {
+      # selectInput("a0.search.details",  "Show details:",  c("Yes", "No"), "No")
+      checkboxInput("a0.search.details", strong( "Show full description" ) )
+    }
+  }),
+  renderUI({
+    if (r.dt0() %>% nrow > 0)  {
+      checkboxInput("a0.search.interactive",  strong("Show interactive" ) )
+      # selectInput("a0.search.interactive",  "Show interactive:",   c("Yes", "No"), "No" )
+    }
+  })
+)
+
+renderUI({
+  # if (input$a1.search.yes.no == "Yes"  & r.dt0() %>% nrow > 0) {
+  req(r.dt0())
+  dt <- r.dt0()
+  if (input$a0.search.details == F) {
+    dt <- dt[,1:2]
+  }
+  
+  if (input$a0.search.interactive==T) {
+    renderDataTable( datatable.title( dt, "Click on column names to sort. Filter by typing in boxes under column names. Press Buttons above to save selected data.") ) # paste0("Keyword: ", input$text.keyword)
+  } else {
+    renderTable( dt )
+  }
+  # }
+  
+})
+
+
+```
+
+
+```{r popups+resets}
+
+observeEvent( input$button.reset, { # you may wish to choose which settings to keep
+  reset.reactive()
+})
+
+d7.reset_input <- function() {
+  # reset ALL inout when input$reset_input is changed
+  
+  # if (T) {
+  # https://stackoverflow.com/questions/24265980/reset-inputs-button-in-shiny-app
+  
+  initialInputs <- isolate(reactiveValuesToList(input))
+  
+  observe({
+    # OPTIONAL - save initial values of dynamic inputs
+    inputValues <- reactiveValuesToList(input)
+    initialInputs <<- utils::modifyList(inputValues, initialInputs)
+  })
+  
+  observeEvent(input$button.reset, {
+    for (id in names(initialInputs)) {
+      value <- initialInputs[[id]]
+      # For empty checkboxGroupInputs
+      if (is.null(value)) value <- ""
+      session$sendInputMessage(id, list(value = value))
+    }
+  }
+  )
+}
+
+d7.reset_input()
+
+
+
+# Pop-up window
+# https://stackoverflow.com/questions/48523338/how-can-i-add-a-message-box-in-r-shiny
+observeEvent(input$button.reset, {
+  showModal(modalDialog(
+    title = "* Warning *",
+    paste("The following inputs have been reset:", paste(unlist(reactiveValuesToList(input)), collapse = ", ")),
+    easyClose = TRUE,
+    footer = "Press anywhere to continue" # NULL
+  ))
+})
+
+# observeEvent(input$button.search, {
+#   showModal(modalDialog(
+#     title = "Search launched",
+#     "Note it can take up to a minute to complete the search",
+#     easyClose = TRUE,
+#     footer = "Press anywhere to continue" # NULL
+#   ))
+# })
+
+observeEvent(input$button.go, {
+  showModal(modalDialog(
+    title = "File being loaded",
+    "Note it can take some time for large files",
+    easyClose = TRUE,
+    footer = "Press anywhere to continue" # NULL
+  ))
+})
+
+
+
+```
+
+
+<!-- ```{r 09_data_info.Rmd, child = '09_data_info.Rmd'} -->
+<!-- ``` -->
+
+
+# Debug {data-orientation=columns}
+
+
+##
+
+<!-- ### Debug window -->
+
+```{r Debug1, echo=F}
+actionButton("button.debug", "Click here to show/hide debug information", width="100%")
+# observeEvent(input$button.debug,
+#                 renderPrint(reactiveValuesToList(input) )
+# )
+
+renderUI ({
+  if (input$button.debug %% 2 == 0)
+    renderPrint(reactiveValuesToList(r))
+})
+
+# r$dt[1:2] %>% renderPrint
+# r$dt0[1:2] %>% renderPrint
+
+
+
+
+# renderUI ({
+#   
+#   dt <- r$dt
+#   req(dt)
+#   
+#   if ( "selected.columns" %in% input$check.show ) { # a0.search.details == T
+#     # dt <- dt[,1:2]
+#     dt <- r$dt0
+#   }
+#   dt %>% renderPrint
+# })
+
+
+```
+
+
+##
+
+```{r Debug2, echo=F}
+
+renderText(paste0("Working directory: ", getwd()))
+
+# 
+# actionButton("button.debug", "Click here to show/hide debug information", width="100%")
+
+
+# observeEvent(input$button.debug,
+#                 renderPrint(reactiveValuesToList(input) )
+# )
+
+
+renderUI (
+  if (input$button.debug %% 2 == 0)  
+    verticalLayout(
+      renderPrint(reactiveValuesToList(input) )
+      
+    )
+)
+
+```

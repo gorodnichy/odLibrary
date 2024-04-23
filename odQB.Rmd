@@ -1,0 +1,112 @@
+---
+title: "OpenCanada.info: Statistics Canada"
+output: flexdashboard::flex_dashboard
+runtime: shiny
+---
+
+
+
+```{r global, include=FALSE}
+knitr::opts_chunk$set(echo = F, message=F, warning=F)
+source("lib_opendata.R")
+```
+
+
+# Data sources
+
+## 
+
+###
+
+Statistics Quebec updated the excess deaths (surmortalité in French) per age group at the beginning of May. 
+
+Surmortalité hebdomadaire selon le groupe d'âge, Québec, 2020‑2023
+
+https://statistique.quebec.ca/fr/document/surmortalite-hebdomadaire/publication/surmortalite-hebdomadaire-selon-groupe-dage-quebec
+
+The raw numbers of total deaths per week were also updated, and 2022 does not look good at all: worse than 2021 and 2020 (minus the cluster of deaths during the first lockdown, of course).
+
+
+https://statistique.quebec.ca/fr/document/surmortalite-hebdomadaire/publication/surmortalite-hebdomadaire-quebec-et-certaines-regions-du-canada
+
+
+https://statistique.quebec.ca/fr/document/nombre-hebdomadaire-de-deces-au-quebec/publication/deces-par-semaine-selon-groupe-age-quebec
+
+-> 
+
+https://statistique.quebec.ca/fr/document/nombre-hebdomadaire-de-deces-au-quebec/publication/nombre-hebdomadaire-de-deces-au-quebec-source-de-donnees-et-methodologie
+
+Nombre hebdomadaire de décès au Québec, 2010-2023
+https://statistique.quebec.ca/fr/document/nombre-hebdomadaire-de-deces-au-quebec
+
+
+### Décès par semaine selon le groupe d'âge, Québec, 2010-2023
+https://statistique.quebec.ca/fr/document/nombre-hebdomadaire-de-deces-au-quebec/tableau/deces-par-semaine-selon-le-groupe-dage-quebec#tri_gp=950
+
+
+
+Lien permanent du tableau
+statistique.quebec.ca/fr/produit/tableau/3936 = https://statistique.quebec.ca/en/produit/tableau/3936#tri_gp=950
+Total
+
+0-49 ans
+https://statistique.quebec.ca/fr/produit/tableau/3936#tri_gp=28
+50-59
+https://statistique.quebec.ca/fr/produit/tableau/3936#tri_gp=605
+60-69
+https://statistique.quebec.ca/fr/produit/tableau/3936#tri_gp=690
+70-79
+https://statistique.quebec.ca/fr/produit/tableau/3936#tri_gp=788
+
+80-89
+https://statistique.quebec.ca/fr/produit/tableau/3936#tri_gp=863
+90 ans et plus
+https://statistique.quebec.ca/fr/produit/tableau/3936#tri_gp=925
+
+
+https://statistique.quebec.ca/docs-ken/multimedia/DecesSemaine_QC_GrAge.xlsx
+
+```{r}
+self$dt <- readxl::read_excel(self$data[[origin]], sheet = self$data[[xls.sheet]])
+
+
+
+self <- COpenData$new(
+  myname="odQB.deaths.by.age",
+  info=c(
+    title = "Weekly deaths by age group, Québec",
+    webpage = NA,
+    comment=NA
+  ),
+  data = c (
+    origin="xls",
+    xls = "https://statistique.quebec.ca/docs-ken/multimedia/DecesSemaine_QC_GrAge.xlsx",
+    xls.sheet =1
+    
+  )
+)
+
+self$dt <- readxl::read_excel(self$data[["xls"]], sheet = self$data[["xls.sheet"]])
+self$dt <- openxlsx::read.xlsx(self$data[["xls"]], sheet = 1, skipEmptyRows=F, startRow=6)
+# dt2 <- openxlsx::read.xlsx(self$data[["xls"]], sheet=2)
+
+self$dt %>% setDT
+
+self$dt <- self$dt %>% melt (1:3)
+self$dt [, value:=as.integer(value)]
+self$dt [, variable :=as.character(variable )]
+self$dt$Statut <- NULL
+self$dt %>% setnames(names(self$dt ), c("yy", "age", "ww", "deaths"))
+self$dt[ , newyears := ymd(paste0(yy,"-01-01") )] [, Date:= newyears + weeks(as.integer(ww)-1)] [, newyears:=NULL][]
+
+```
+
+### Naissances, décès et mariages par mois et par trimestre, Québec, 1995-2023
+
+https://statistique.quebec.ca/fr/produit/tableau/naissances-deces-et-mariages-par-mois-et-par-trimestre-quebec#tri_phe=3528
+
+https://statistique.quebec.ca/fr/produit/tableau/698
+décès 
+https://statistique.quebec.ca/fr/produit/tableau/698#tri_phe=3528
+Naissances
+https://statistique.quebec.ca/fr/produit/tableau/698#tri_phe=3527

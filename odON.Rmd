@@ -1,0 +1,290 @@
+---
+title: "OpenCanada.info: Ontario"
+output: flexdashboard::flex_dashboard
+runtime: shiny
+---
+
+
+```{r  include=FALSE}
+library(ckanr);  
+ckanr_setup(url = "https://data.ontario.ca/")
+
+knitr::opts_chunk$set(echo = F, message=FALSE, warning=FALSE)
+# source("opendata-base.R")
+source("lib_opendata.R")
+```
+
+
+```{r odON_sources.Rmd, child = 'odON_sources.Rmd'}
+```
+
+
+
+<!-- # Deaths {data-orientation=rows, data-navmenu="Ontario"} -->
+
+
+```{r Vital Events Data by Month}
+
+
+ckan = "58e648f1-ae1e-4ed7-9003-7da5983b0a77"	
+title = "Cumulative deaths (new methodology)"
+
+```
+
+# Vital Events by Month {data-orientation=rows, data-navmenu="Ontario"}
+
+
+```{r Vital Events Data by Month}
+
+
+ckan = "58e648f1-ae1e-4ed7-9003-7da5983b0a77"	
+title = "Cumulative deaths (new methodology)"
+
+
+self <- COpenData$new(
+  myname="odOntario.death.registrations",
+  info=c(
+    title = "Death registrations in Ontario",
+    webpage = NA,
+    comment=NA
+  ),
+  data = c (
+    origin="ckan",
+    ckan = "2925c1ea-8313-4e9b-bdea-344e521d2298"
+  )
+)
+  
+self <- COpenData$new(
+  myname="odOntario.vitals.by.month",
+  info=c(
+    title = "Vital Events Data by Month",
+    webpage = "https://data.ontario.ca/en/dataset/vital-events-data-by-month",
+    comment="Includes births and stillbirths"
+  ),
+  data = c (
+    origin="ckan",
+    ckan = "97622ce6-c06a-4970-afe5-be540c748f24",
+    csv = "https://data.ontario.ca/dataset/e100b1d5-b7fb-40fd-b7a0-50289d13c574/resource/97622ce6-c06a-4970-afe5-be540c748f24/download/vital_events_data_by_month_1994-2022_q2.csv"
+  )
+)
+
+self$restore.me()
+
+# self %>% od.fread(origin=self$data[["origin"]])
+self %>% od.fread(origin="ckan")
+# self %>% od.fread(origin="csv.local")
+
+self %>% od.view()
+
+self$fLte.Define(
+  function (self) {
+    dt <- self$dt
+    dt %>% names
+    col <- "Month/Mois"
+    dt[, (col):=fct_inorder(get(col))] 
+    dt[, (col) := as.integer(get(col))]
+    dt[, Date:=ym(paste(`Year/Année`, get(col)) ) ]
+    
+    dt[, ( "Marriages/Mariages" ):= NULL]
+    dt[, c( "Month/Mois", "Year/Année" ):= NULL]   
+    setnames(dt, "Stillbirths/Mortinaissances", "Stillbirths") 
+    setnames(dt, "Live Births/Naissances vivantes", "Live Births") 
+    setnames(dt, "Deaths/Dècés", "Deaths")
+    
+    
+    dt [ , `Stillbirths per thousand Total Births` := round (1000 *`Stillbirths` / (Stillbirths+`Live Births`),0)][]  
+    dt [ , `Live Births vs. Deaths` := round (`Live Births` / Deaths,2)][] 
+
+    dt$dummy <- "This dataset does not contain any factors"
+    # dt$dummy <- ""
+    
+    self$dt <- dt
+    
+    self %>% od.setColumns(
+      date="Date",
+      factors="dummy",  
+      metrics = c( "Live Births", "Deaths","Stillbirths", "Stillbirths per thousand Total Births", "Live Births vs. Deaths")
+    )
+    
+    self$dt %>% setorder(-Date)
+    
+    self$input$metric <- self$col.metrics[4]
+    self$input$date.start[1] <- ymd("2015-01-01")
+    self$input$date.start[2] <- self$dateMax
+  }
+)  
+self$fLte(self)
+self$col.factors.values
+self %>% od.view()
+self$store.me()
+rm(self)
+
+self$dt
+
+self %>% od.add.value.by.convolution (
+  self$input$metric, 3)
+
+self %>% od.plot
+
+# self %>% od.add.value.by.granularity (metric="Weekly", granularity=aMetrics[8])
+# self <- self %>% od.add.prepandemic ()
+
+
+```
+  
+
+
+## --- SIDEBAR ---- {.sidebar data-width="250"} 
+
+
+## *** {.tabset .tabset-fade} 
+
+
+
+### Vital Events Data by Month
+
+
+### Grid
+
+### Timeseries
+
+### Interactive plot
+
+### Plot 
+
+
+
+```
+
+
+
+
+
+```{r eval=T}
+knitr::knit_exit()
+```
+
+# Ontario  (TBD) {data-orientation=rows, data-navmenu="Provincial"}
+
+## *** {.tabset .tabset-fade} 
+
+
+### COVID-19 cases in hospital and ICU
+
+- https://data.ontario.ca/en/dataset?q=vital+statistics
+- https://data.ontario.ca/en/dataset?q=covid
+- https://data.ontario.ca/datastore/dump/e760480e-1f95-4634-a923-98161cfb02fa?bom=True
+
+
+
+
+```{r}
+cOn.CasesICU <- COpenDataOntario$new(
+  source = "Ontario",
+  title = "COVID-19 cases in hospital and ICU, by Ontario Health (OH) region",
+  table = "e760480e-1f95-4634-a923-98161cfb02fa"
+)
+
+cOn.CasesICU$ckanr()
+cOn.CasesICU$..v()
+
+```
+
+
+```{r}
+cOn.CasesICU2 <- COpenData$new(
+  url = "https://data.ontario.ca/en/dataset/availability-of-adult-icu-beds-and-occupancy-for-covid-related-critical-illness-crci",
+  csv = "https://data.ontario.ca/dataset/1b5ff63f-48a1-4db6-965f-ab6acbab9f29/resource/c7f2590f-362a-498f-a06c-da127ec41a33/download/icu_beds.csv"
+)
+```
+
+### Deaths
+
+Source: https://data2.ontario.ca/en/dataset/deaths-by-cause-sex-and-age 
+Last Validated Date	2016-10-05
+Update frequency	Yearly
+
+### Deaths (new methodology)
+
+Source: 
+
+
+
+58e648f1-ae1e-4ed7-9003-7da5983b0a77	Cumulative deaths (new methodology)
+
+```{r}
+cOn.Deaths <- COpenData$new(
+  title = "Cumulative deaths (new methodology)",
+  table = "58e648f1-ae1e-4ed7-9003-7da5983b0a77"
+)
+
+cOn.Deaths$dt <- fread( ckanr::resource_show(id = cOn.Deaths$table) [["url"]] )
+cOn.Deaths$dt
+
+self <- cOn.Deaths
+
+self$dt
+
+
+ 
+  
+  r$dtAll <- ckanr::resource_show(id = "2925c1ea-8313-4e9b-bdea-344e521d2298") %>% .["url"] %>% unlist %>% fread #Death registrations in Ontario
+  
+
+```
+
+
+### Deaths by vaccination status
+
+
+```{r}
+cOn.CovidDeathsByDose = COpenData$new(
+  source = "Ontario",
+  title = "Deaths Involving COVID-19 by Vaccination Status",
+  comment = "As of January 26, 2023, data from the date of January 1, 2023 onwards reflect updated population estimates. This update specifically impacts data for the 'not fully vaccinated' category.",
+  url = "https://data.ontario.ca/en/dataset/deaths-involving-covid-19-by-vaccination-status",
+  csv = 
+    "https://data.ontario.ca/dataset/1375bb00-6454-4d3e-a723-4ae9e849d655/resource/2aa6e2ce-40de-4910-a737-81762e014b0b/download/deaths_by_vac_status.csv",
+  csv.local = "ON-deaths_by_vac_status.csv",
+  frequency = "Daily",
+  updated ="Weekly"
+  
+)
+self <- cOn.CovidDeathsByDose
+self$dt = fread(self$csv)
+# cOnDeathsDose$fread(cached=F)
+self$dt.view()
+fwrite(self$dt, self$csv.local)
+
+cols  <- self$dt %>% names () %>% .[3:5]; cols
+self$dt <- self$dt %>% melt( measure = cols, variable.name = "Doses", value.name = "Deaths", variable.factor = T )
+
+self$dt[, Doses:=str_replace(Doses, "_vac_rate_7ma", "")]
+
+# self$dt %>% setnames(c("date", "age_group"), c("Date", "Age"))
+
+# self$factors <- c()
+cOn.CovidDeathsByDose$dt
+
+
+# cOn.DeathsDose <- self
+
+
+```
+
+
+
+```{r}
+
+h3("Historic deaths by location")
+
+"https://data.ontario.ca/en/dataset/death-registrations-in-ontario-by-location"
+"https://data.ontario.ca/dataset/f2d9985b-7195-4a12-8f6c-4efc9adca8d1/resource/2925c1ea-8313-4e9b-bdea-344e521d2298/download/death_registrations_in_ontario_by_location_1940-2022_q2.csv"
+
+"https://data.ontario.ca/en/dataset/death-registrations-in-ontario-by-residence"
+"https://data.ontario.ca/dataset/04bb62a9-bd7a-4f2d-bb42-a27c620b1f68/resource/f46643ca-eaaf-40a6-a545-11bc4cc45279/download/death_registrations_in_ontario_by_residence_1980-2022_q2.csv"
+
+"https://data.ontario.ca/en/dataset/comparative-birth-death-marriage-data"
+"https://data.ontario.ca/dataset/7d6d02f8-140f-467d-a7c1-861480cadb6d/resource/8f40d667-b379-41c6-b929-cdcce6e0ada7/download/comparative_birth_death_and_marriage_1925-2022_q2.csv"
+
+```

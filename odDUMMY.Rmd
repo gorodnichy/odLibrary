@@ -1,0 +1,52 @@
+---
+title: "OpenCanada.info: DUMMY"
+output: flexdashboard::flex_dashboard
+# runtime: shiny
+---
+
+```{r  include=FALSE}
+knitr::opts_chunk$set(echo = F, message=F, warning=F)
+source("opendata-base.R")
+dtDatasets <- data(package = .packages(all.available = TRUE) ) $ results %>% as.data.table
+```
+
+#  Deaths & Birth -- by gender and province {data-orientation=columns, data-navmenu="DUMMY"}
+
+```{r offline-odDUMMY.deaths.by.age, eval=FALSE, include=FALSE}
+self <- COpenData$new(
+  myname="odDUMMY"
+)
+self$dt <- dt.create.sample.dataset() %>% print
+```
+
+## Settings: {.sidebar}
+
+```{r select.data}
+# selectInput(
+#   "dataset",  "Select dataset:",  width="100%",
+#   choices = dtDatasets$Item
+# )
+
+observe({
+  r$cWin1 <- self$clone()
+})
+
+renderUI({
+  shiny.set.input( r$cWin1$dt )
+})
+
+
+
+```
+
+---
+[Debug info](#debug)
+
+
+<!-- ## *** {.tabset .tabset-fade}  -->
+
+
+```{r}
+
+
+```
